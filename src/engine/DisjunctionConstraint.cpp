@@ -93,7 +93,7 @@ void DisjunctionConstraint::notifyVariableValue( unsigned variable, double value
 void DisjunctionConstraint::notifyLowerBound( unsigned variable, double bound )
 {
     if ( _statistics )
-        _statistics->incNumBoundNotificationsPlConstraints();
+        _statistics->incLongAttribute( Statistics::NUM_BOUND_NOTIFICATIONS_TO_PL_CONSTRAINTS );
 
     if ( existsLowerBound( variable ) && !FloatUtils::gt( bound, getLowerBound( variable ) ) )
         return;
@@ -106,7 +106,7 @@ void DisjunctionConstraint::notifyLowerBound( unsigned variable, double bound )
 void DisjunctionConstraint::notifyUpperBound( unsigned variable, double bound )
 {
     if ( _statistics )
-        _statistics->incNumBoundNotificationsPlConstraints();
+        _statistics->incLongAttribute( Statistics::NUM_BOUND_NOTIFICATIONS_TO_PL_CONSTRAINTS );
 
     if ( existsUpperBound( variable ) && !FloatUtils::lt( bound, getUpperBound( variable ) ) )
         return;
@@ -240,10 +240,6 @@ void DisjunctionConstraint::getEntailedTightenings( List<Tightening> &/* tighten
 }
 
 void DisjunctionConstraint::addAuxiliaryEquations( InputQuery &/* inputQuery */ )
-{
-}
-
-void DisjunctionConstraint::getCostFunctionComponent( Map<unsigned, double> &/* cost */ ) const
 {
 }
 

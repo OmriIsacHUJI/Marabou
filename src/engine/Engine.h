@@ -29,6 +29,7 @@
 #include "GurobiWrapper.h"
 #include "IEngine.h"
 #include "InputQuery.h"
+#include "LinearExpression.h"
 #include "Map.h"
 #include "MILPEncoder.h"
 #include "Options.h"
@@ -56,6 +57,10 @@ class String;
 class Engine : public IEngine, public SignalHandler::Signalable
 {
 public:
+    enum {
+          MICROSECONDS_TO_SECONDS = 1000000,
+    };
+
     Engine();
     ~Engine();
 
@@ -64,6 +69,16 @@ public:
       (a timeout of 0 means no time limit). Returns true if found, false if infeasible.
     */
     bool solve( unsigned timeoutInSeconds = 0 );
+
+    /*
+      Minimize the cost function with respect to the current set of linear constraints.
+    */
+    void minimizeHeuristicCost( const LinearExpression &heuristicCost );
+
+    /*
+      Compute the cost function with the current assignment.
+    */
+    double computeHeuristicCost( const LinearExpression &heuristicCost );
 
     /*
       Process the input query and pass the needed information to the
@@ -188,6 +203,7 @@ public:
     void applySnCSplit( PiecewiseLinearCaseSplit sncSplit, String queryId );
 
 private:
+
     enum BasisRestorationRequired {
         RESTORATION_NOT_NEEDED = 0,
         STRONG_RESTORATION_NEEDED = 1,
@@ -405,12 +421,15 @@ private:
      */
     String _queryId;
 
+    LinearExpression _heuristicCost;
 
     /*
       Perform a simplex step: compute the cost function, pick the
       entering and leaving variables and perform a pivot.
+      Return true only if the current assignment is optimal
+      with respect to _heuristicCost.
     */
-    void performSimplexStep();
+    bool performSimplexStep();
 
     /*
       Perform a constraint-fixing step: select a violated piece-wise

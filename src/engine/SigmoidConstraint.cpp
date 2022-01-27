@@ -99,7 +99,7 @@ void SigmoidConstraint::notifyLowerBound( unsigned variable, double bound )
     ASSERT( variable == _b || variable == _f );
 
     if ( _statistics )
-        _statistics->incNumBoundNotificationsTranscendentalConstraints();
+        _statistics->incLongAttribute( Statistics::NUM_BOUND_NOTIFICATIONS_TO_TRANSCENDENTAL_CONSTRAINTS );
 
     if ( existsLowerBound( variable ) && !FloatUtils::gt( bound, getLowerBound( variable ) ) )
         return;
@@ -120,7 +120,7 @@ void SigmoidConstraint::notifyUpperBound( unsigned variable, double bound )
     ASSERT( variable == _b || variable == _f );
 
     if ( _statistics )
-        _statistics->incNumBoundNotificationsTranscendentalConstraints();
+        _statistics->incLongAttribute( Statistics::NUM_BOUND_NOTIFICATIONS_TO_TRANSCENDENTAL_CONSTRAINTS );
 
     if ( existsUpperBound( variable ) && !FloatUtils::lt( bound, getUpperBound( variable ) ) )
         return;
@@ -130,9 +130,9 @@ void SigmoidConstraint::notifyUpperBound( unsigned variable, double bound )
     if ( _constraintBoundTightener )
     {
         if ( variable == _f )
-            _constraintBoundTightener->registerTighterLowerBound( _b, sigmoidInverse(bound) );
+            _constraintBoundTightener->registerTighterUpperBound( _b, sigmoidInverse(bound) );
         else if ( variable == _b )
-            _constraintBoundTightener->registerTighterLowerBound( _f, sigmoid(bound) );
+            _constraintBoundTightener->registerTighterUpperBound( _f, sigmoid(bound) );
     }
 }
 
@@ -246,4 +246,9 @@ double SigmoidConstraint::sigmoidInverse( double y ) const
 {
     ASSERT( y != 1 );
     return log( y / ( 1 - y ) );
+}
+
+double SigmoidConstraint::sigmoidDerivative( double x ) const
+{
+    return sigmoid( x ) * ( 1 - sigmoid( x ) );
 }
