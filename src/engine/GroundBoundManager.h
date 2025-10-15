@@ -31,9 +31,9 @@ class GroundBoundManager
 {
 public:
     /*
-     A struct representing ground bounds, whose learning cannot be explained using a single Farkas
-     vector. Entries include bookkeeping of data used for proof minimization, such as id and which
-     lemma was used to derive them
+     A struct representing ground bounds, whose derivation cannot be explained using a single Farkas
+     vector. Entries include bookkeeping of data used for proof minimization, such as a unique id
+     and the lemma used for derivation
     */
     struct GroundBoundEntry
     {

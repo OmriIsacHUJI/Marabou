@@ -3927,7 +3927,7 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
     Vector<double> glb;
 
     // Set up the correct context for dependency minimization of a lemma
-    // i.e., used ground bounds learned up to that point
+    // i.e., use ground bounds deduced up to the lemma deduction
     if ( GlobalConfiguration::MINIMIZE_PROOF_DEPENDENCIES )
     {
         gub = Vector<double>( _tableau->getN(), 0 );
@@ -3940,7 +3940,7 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
         }
     }
 
-    // Iterate through all lemmas learned, check which participated in the explanation
+    // Iterate through all deduced bounds, check which participated in the explanation
     for ( unsigned var = 0; var < linearCombination.size(); ++var )
     {
         if ( !FloatUtils::isZero( linearCombination[var] ) )
@@ -3976,7 +3976,7 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
                     : UNSATCertificateUtils::computeCombinationLowerBound(
                           linearCombination, gub.data(), glb.data(), _tableau->getN() );
 
-        // Sort by contributions
+        // Sort by contribution
         std::sort(
             contributions.begin(),
             contributions.end(),
