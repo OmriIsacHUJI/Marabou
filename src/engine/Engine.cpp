@@ -84,7 +84,6 @@ Engine::Engine()
     setRandomSeed( Options::get()->getInt( Options::SEED ) );
 
     _boundManager.registerEngine( this );
-    _groundBoundManager.registerEngine( this );
     _statisticsPrintingFrequency = ( _lpSolverType == LPSolverType::NATIVE )
                                      ? GlobalConfiguration::STATISTICS_PRINTING_FREQUENCY
                                      : GlobalConfiguration::STATISTICS_PRINTING_FREQUENCY_GUROBI;
@@ -1488,8 +1487,10 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
 
                 for ( unsigned i = 0; i < n; ++i )
                 {
-                    _groundBoundManager.setUpperBound( i, _preprocessedQuery->getUpperBound( i ) );
-                    _groundBoundManager.setLowerBound( i, _preprocessedQuery->getLowerBound( i ) );
+                    _groundBoundManager.addGroundBound(
+                        i, _preprocessedQuery->getUpperBound( i ), Tightening::UB, false );
+                    _groundBoundManager.addGroundBound(
+                        i, _preprocessedQuery->getLowerBound( i ), Tightening::LB, false );
                 }
             }
         }
@@ -2084,7 +2085,7 @@ void Engine::applySplit( const PiecewiseLinearCaseSplit &split )
                  FloatUtils::gt( bound._value, _boundManager.getLowerBound( bound._variable ) ) )
             {
                 _boundManager.resetExplanation( variable, Tightening::LB );
-                updateGroundLowerBound( variable, bound._value );
+                _groundBoundManager.addGroundBound( variable, bound._value, Tightening::LB, true );
                 _boundManager.tightenLowerBound( variable, bound._value );
             }
             else if ( !_produceUNSATProofs )
@@ -2098,7 +2099,7 @@ void Engine::applySplit( const PiecewiseLinearCaseSplit &split )
                  FloatUtils::lt( bound._value, _boundManager.getUpperBound( bound._variable ) ) )
             {
                 _boundManager.resetExplanation( variable, Tightening::UB );
-                updateGroundUpperBound( variable, bound._value );
+                _groundBoundManager.addGroundBound( variable, bound._value, Tightening::UB, true );
                 _boundManager.tightenUpperBound( variable, bound._value );
             }
             else if ( !_produceUNSATProofs )
@@ -2520,8 +2521,6 @@ void Engine::preContextPushHook()
 {
     struct timespec start = TimeUtils::sampleMicro();
     _boundManager.storeLocalBounds();
-    if ( _produceUNSATProofs )
-        _groundBoundManager.storeLocalBounds();
     struct timespec end = TimeUtils::sampleMicro();
 
     _statistics.incLongAttribute( Statistics::TIME_CONTEXT_PUSH_HOOK,
@@ -2533,9 +2532,11 @@ void Engine::postContextPopHook()
     struct timespec start = TimeUtils::sampleMicro();
 
     _boundManager.restoreLocalBounds();
-    if ( _produceUNSATProofs )
-        _groundBoundManager.restoreLocalBounds();
-    _tableau->postContextPopHook();
+    if ( _lpSolverType == LPSolverType::NATIVE )
+    {
+        _tableau->postContextPopHook();
+        _costFunctionManager->computeCoreCostFunction();
+    }
 
     struct timespec end = TimeUtils::sampleMicro();
     _statistics.incLongAttribute( Statistics::TIME_CONTEXT_POP_HOOK,
@@ -3371,25 +3372,18 @@ Query Engine::buildQueryFromCurrentState() const
     return query;
 }
 
-void Engine::updateGroundUpperBound( const unsigned var, const double value )
-{
-    ASSERT( var < _tableau->getN() && _produceUNSATProofs );
-    if ( FloatUtils::lt( value, _groundBoundManager.getUpperBound( var ) ) )
-        _groundBoundManager.setUpperBound( var, value );
-}
-
-void Engine::updateGroundLowerBound( const unsigned var, const double value )
-{
-    ASSERT( var < _tableau->getN() && _produceUNSATProofs );
-    if ( FloatUtils::gt( value, _groundBoundManager.getLowerBound( var ) ) )
-        _groundBoundManager.setLowerBound( var, value );
-}
-
 double Engine::getGroundBound( unsigned var, bool isUpper ) const
 {
     ASSERT( var < _tableau->getN() && _produceUNSATProofs );
-    return isUpper ? _groundBoundManager.getUpperBound( var )
-                   : _groundBoundManager.getLowerBound( var );
+    return _groundBoundManager.getGroundBound( var, isUpper ? Tightening::UB : Tightening::LB );
+}
+
+std::shared_ptr<GroundBoundManager::GroundBoundEntry>
+Engine::getGroundBoundEntry( unsigned var, bool isUpper ) const
+{
+    ASSERT( var < _tableau->getN() && _produceUNSATProofs );
+    return _groundBoundManager.getGroundBoundEntry( var,
+                                                    isUpper ? Tightening::UB : Tightening::LB );
 }
 
 bool Engine::shouldProduceProofs() const
@@ -3435,6 +3429,18 @@ void Engine::explainSimplexFailure()
     writeContradictionToCertificate( leafContradictionVec, infeasibleVar );
 
     ( **_UNSATCertificateCurrentPointer ).makeLeaf();
+
+    if ( GlobalConfiguration::ANALYZE_PROOF_DEPENDENCIES )
+    {
+        SparseUnsortedList sparseContradictionToAnalyse = SparseUnsortedList();
+        leafContradictionVec.empty()
+            ? sparseContradictionToAnalyse.initializeToEmpty()
+            : sparseContradictionToAnalyse.initialize( leafContradictionVec.data(),
+                                                       leafContradictionVec.size() );
+
+        analyseExplanationDependencies(
+            sparseContradictionToAnalyse, _groundBoundManager.getCounter(), -1, true, 0 );
+    }
 }
 
 bool Engine::certifyInfeasibility( unsigned var ) const
@@ -3444,8 +3450,8 @@ bool Engine::certifyInfeasibility( unsigned var ) const
     Vector<double> contradiction = computeContradiction( var );
 
     if ( contradiction.empty() )
-        return FloatUtils::isNegative( _groundBoundManager.getUpperBound( var ) -
-                                       _groundBoundManager.getLowerBound( var ) );
+        return FloatUtils::isNegative( _groundBoundManager.getGroundBound( var, Tightening::UB ) -
+                                       _groundBoundManager.getGroundBound( var, Tightening::LB ) );
 
     SparseUnsortedList sparseContradiction = SparseUnsortedList();
 
@@ -3455,15 +3461,15 @@ bool Engine::certifyInfeasibility( unsigned var ) const
 
     // In case contradiction is a vector of zeros
     if ( sparseContradiction.empty() )
-        return FloatUtils::isNegative( _groundBoundManager.getUpperBound( var ) -
-                                       _groundBoundManager.getLowerBound( var ) );
+        return FloatUtils::isNegative( _groundBoundManager.getGroundBound( var, Tightening::UB ) -
+                                       _groundBoundManager.getGroundBound( var, Tightening::LB ) );
 
-    double derivedBound =
-        UNSATCertificateUtils::computeCombinationUpperBound( sparseContradiction,
-                                                             _tableau->getSparseA(),
-                                                             _groundBoundManager.getUpperBounds(),
-                                                             _groundBoundManager.getLowerBounds(),
-                                                             _tableau->getN() );
+    double derivedBound = UNSATCertificateUtils::computeCombinationUpperBound(
+        sparseContradiction,
+        _tableau->getSparseA(),
+        _groundBoundManager.getAllGroundBounds( Tightening::UB ).data(),
+        _groundBoundManager.getAllGroundBounds( Tightening::LB ).data(),
+        _tableau->getN() );
     return FloatUtils::isNegative( derivedBound );
 }
 
@@ -3477,16 +3483,16 @@ double Engine::explainBound( unsigned var, bool isUpper ) const
         explanation = _boundManager.getExplanation( var, isUpper );
 
     if ( explanation.empty() )
-        return isUpper ? _groundBoundManager.getUpperBound( var )
-                       : _groundBoundManager.getLowerBound( var );
+        return _groundBoundManager.getGroundBound( var, isUpper ? Tightening::UB : Tightening::LB );
 
-    return UNSATCertificateUtils::computeBound( var,
-                                                isUpper,
-                                                explanation,
-                                                _tableau->getSparseA(),
-                                                _groundBoundManager.getUpperBounds(),
-                                                _groundBoundManager.getLowerBounds(),
-                                                _tableau->getN() );
+    return UNSATCertificateUtils::computeBound(
+        var,
+        isUpper,
+        explanation,
+        _tableau->getSparseA(),
+        _groundBoundManager.getAllGroundBounds( Tightening::UB ).data(),
+        _groundBoundManager.getAllGroundBounds( Tightening::LB ).data(),
+        _tableau->getN() );
 }
 
 bool Engine::validateBounds( unsigned var, double epsilon, bool isUpper ) const
@@ -3544,9 +3550,9 @@ bool Engine::checkGroundBounds() const
 
     for ( unsigned i = 0; i < _tableau->getN(); ++i )
     {
-        if ( FloatUtils::gt( _groundBoundManager.getLowerBound( i ),
+        if ( FloatUtils::gt( _groundBoundManager.getGroundBound( i, Tightening::UB ),
                              _boundManager.getLowerBound( i ) ) ||
-             FloatUtils::lt( _groundBoundManager.getUpperBound( i ),
+             FloatUtils::lt( _groundBoundManager.getGroundBound( i, Tightening::LB ),
                              _boundManager.getUpperBound( i ) ) )
             return false;
     }
@@ -3708,8 +3714,8 @@ bool Engine::certifyUNSATCertificate()
 
     for ( unsigned i = 0; i < _tableau->getN(); ++i )
     {
-        groundUpperBounds[i] = _groundBoundManager.getUpperBound( i );
-        groundLowerBounds[i] = _groundBoundManager.getLowerBound( i );
+        groundUpperBounds[i] = _groundBoundManager.getGroundBound( i, Tightening::UB );
+        groundLowerBounds[i] = _groundBoundManager.getGroundBound( i, Tightening::LB );
     }
 
     if ( GlobalConfiguration::WRITE_JSON_PROOF )
@@ -3883,10 +3889,146 @@ void Engine::incNumOfLemmas()
 
     ASSERT( _UNSATCertificate && _UNSATCertificateCurrentPointer )
     _statistics.incUnsignedAttribute( Statistics::NUM_LEMMAS );
-    _statistics.incUnsignedAttribute( Statistics::NUM_LEMMAS_USED );
 }
 
 const List<PiecewiseLinearConstraint *> *Engine::getPiecewiseLinearConstraints() const
 {
     return &_plConstraints;
+}
+
+std::shared_ptr<GroundBoundManager::GroundBoundEntry>
+Engine::setGroundBoundFromLemma( const std::shared_ptr<PLCLemma> lemma, bool isPhaseFixing )
+{
+    return _groundBoundManager.addGroundBound( lemma, isPhaseFixing );
+}
+
+Set<std::shared_ptr<GroundBoundManager::GroundBoundEntry>>
+Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
+                                        unsigned id,
+                                        int explainedVar,
+                                        bool isUpper,
+                                        double targetBound )
+{
+    Vector<double> linearCombination( 0 );
+    UNSATCertificateUtils::getExplanationRowCombination(
+        explanation, linearCombination, _tableau->getSparseA(), _tableau->getN() );
+
+    if ( explainedVar >= 0 )
+        linearCombination[explainedVar]++;
+
+    Set<std::shared_ptr<GroundBoundManager::GroundBoundEntry>> entries =
+        Set<std::shared_ptr<GroundBoundManager::GroundBoundEntry>>();
+
+    Vector<std::tuple<double, std::shared_ptr<GroundBoundManager::GroundBoundEntry>>>
+        contributions =
+            Vector<std::tuple<double, std::shared_ptr<GroundBoundManager::GroundBoundEntry>>>();
+
+    Vector<double> gub;
+    Vector<double> glb;
+
+    if ( GlobalConfiguration::MINIMIZE_PROOF_DEPENDENCIES )
+    {
+        gub = Vector<double>( _tableau->getN(), 0 );
+        glb = Vector<double>( _tableau->getN(), 0 );
+
+        for ( unsigned i = 0; i < _tableau->getN(); ++i )
+        {
+            gub[i] = _groundBoundManager.getGroundBoundUpToId( i, Tightening::UB, id );
+            glb[i] = _groundBoundManager.getGroundBoundUpToId( i, Tightening::LB, id );
+        }
+    }
+
+    // Iterate through all lemmas learned, check which participated in the explanation
+    for ( unsigned var = 0; var < linearCombination.size(); ++var )
+    {
+        if ( !FloatUtils::isZero( linearCombination[var] ) )
+        {
+            Tightening::BoundType btype = ( ( linearCombination[var] > 0 ) && isUpper ) ||
+                                                  ( ( linearCombination[var] < 0 ) && !isUpper )
+                                            ? Tightening::UB
+                                            : Tightening::LB;
+            std::shared_ptr<GroundBoundManager::GroundBoundEntry> entry =
+                _groundBoundManager.getGroundBoundEntryUpToId( var, btype, id );
+
+            entries.insert( entry );
+
+            if ( GlobalConfiguration::MINIMIZE_PROOF_DEPENDENCIES && entry.get() && entry->lemma &&
+                 !entry->lemma->getToCheck() )
+            {
+                double contribution =
+                    ( entry->val - _groundBoundManager.getGroundBoundUpToId( var, btype, 0 ) ) *
+                    linearCombination[var];
+
+                contributions.append( std::make_tuple( contribution, entry ) );
+            }
+        }
+    }
+
+    if ( GlobalConfiguration::MINIMIZE_PROOF_DEPENDENCIES )
+    {
+        double explanationBound =
+            isUpper ? UNSATCertificateUtils::computeCombinationUpperBound(
+                          linearCombination, gub.data(), glb.data(), _tableau->getN() )
+                    : UNSATCertificateUtils::computeCombinationLowerBound(
+                          linearCombination, gub.data(), glb.data(), _tableau->getN() );
+
+        std::sort(
+            contributions.begin(),
+            contributions.end(),
+            []( std::tuple<double, std::shared_ptr<GroundBoundManager::GroundBoundEntry>> a,
+                std::tuple<double, std::shared_ptr<GroundBoundManager::GroundBoundEntry>> b ) {
+                return abs( std::get<0>( a ) ) < abs( std::get<0>( b ) );
+            } );
+
+        if ( explainedVar < 0 || ( isUpper && explanationBound <= targetBound ) ||
+             ( !isUpper && explanationBound >= targetBound ) )
+        {
+            double overallContributions = 0;
+
+            for ( const auto &contribution : contributions )
+            {
+                overallContributions += abs( std::get<0>( contribution ) );
+                if ( FloatUtils::lt( overallContributions,
+                                     abs( explanationBound - targetBound ),
+                                     GlobalConfiguration::LEMMA_CERTIFICATION_TOLERANCE ) )
+                    entries.erase( std::get<1>( contribution ) );
+                else
+                    break;
+            }
+        }
+    }
+
+
+    for ( const auto &entry : entries )
+    {
+        ASSERT( entry->id < id );
+
+        if ( entry->lemma && !entry->lemma->getExplanations().empty() &&
+             !entry->lemma->getExplanations().front().empty() && !entry->lemma->getToCheck() )
+        {
+            entry->lemma->setToCheck();
+
+            _statistics.incUnsignedAttribute( Statistics::NUM_LEMMAS_USED );
+            std::_List_const_iterator<unsigned int> it = entry->lemma->getCausingVars().begin();
+            for ( const auto &expl : entry->lemma->getExplanations() )
+            {
+                if ( expl.empty() )
+                {
+                    std::advance( it, 1 );
+                    continue;
+                }
+
+                analyseExplanationDependencies( expl,
+                                                entry->id,
+                                                *it,
+                                                entry->lemma->getCausingVarBound() ==
+                                                    Tightening::UB,
+                                                entry->lemma->getMinTargetBound() );
+
+                std::advance( it, 1 );
+            }
+        }
+    }
+
+    return entries;
 }

@@ -121,6 +121,7 @@ public:
       Returns a string representing the value of a double
      */
     static String signedValue( double val );
+
     /*
       A wrapper function calling all previous functions
     */

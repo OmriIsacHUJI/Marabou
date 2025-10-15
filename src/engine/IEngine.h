@@ -18,6 +18,8 @@
 
 #include "BoundExplainer.h"
 #include "DivideStrategy.h"
+#include "GroundBoundManager.h"
+#include "LPSolverType.h"
 #include "List.h"
 #include "PlcLemma.h"
 #include "SnCDivideStrategy.h"
@@ -121,12 +123,6 @@ public:
     */
     virtual double explainBound( unsigned var, bool isUpper ) const = 0;
 
-    /*
-      Update the ground bounds
-      */
-    virtual void updateGroundUpperBound( unsigned var, double value ) = 0;
-    virtual void updateGroundLowerBound( unsigned var, double value ) = 0;
-
     virtual void applyAllBoundTightenings() = 0;
 
     virtual bool applyAllValidConstraintCaseSplits() = 0;
@@ -146,6 +142,8 @@ public:
       Get the ground bound of the variable
     */
     virtual double getGroundBound( unsigned var, bool isUpper ) const = 0;
+    virtual std::shared_ptr<GroundBoundManager::GroundBoundEntry>
+    getGroundBoundEntry( unsigned var, bool isUpper ) const = 0;
 
     /*
       Get the current pointer in the UNSAT certificate node
@@ -191,6 +189,12 @@ public:
       Add lemma to the UNSAT Certificate
     */
     virtual void incNumOfLemmas() = 0;
+
+    /*
+      Add ground bound entry using a lemma
+    */
+    virtual std::shared_ptr<GroundBoundManager::GroundBoundEntry>
+    setGroundBoundFromLemma( const std::shared_ptr<PLCLemma> lemma, bool isPhaseFixing ) = 0;
 
     virtual const List<PiecewiseLinearConstraint *> *getPiecewiseLinearConstraints() const = 0;
 };

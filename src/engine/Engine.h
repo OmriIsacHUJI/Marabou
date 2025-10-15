@@ -27,6 +27,7 @@
 #include "DegradationChecker.h"
 #include "DivideStrategy.h"
 #include "GlobalConfiguration.h"
+#include "GroundBoundManager.h"
 #include "GurobiWrapper.h"
 #include "IEngine.h"
 #include "IQuery.h"
@@ -252,18 +253,14 @@ public:
     /*
       Returns true iff the engine is in proof production mode
     */
-    bool shouldProduceProofs() const override;
-
-    /*
-      Update the ground bounds
-    */
-    void updateGroundUpperBound( unsigned var, double value ) override;
-    void updateGroundLowerBound( unsigned var, double value ) override;
+    bool shouldProduceProofs() const;
 
     /*
       Return all ground bounds as a vector
     */
-    double getGroundBound( unsigned var, bool isUpper ) const override;
+    double getGroundBound( unsigned var, bool isUpper ) const;
+    std::shared_ptr<GroundBoundManager::GroundBoundEntry> getGroundBoundEntry( unsigned var,
+                                                                               bool isUpper ) const;
 
     /*
       Get the current pointer of the UNSAT certificate
@@ -304,6 +301,12 @@ public:
       Add lemma to the UNSAT Certificate
     */
     void incNumOfLemmas() override;
+
+    /*
+     Add ground bound entry using a lemma
+    */
+    std::shared_ptr<GroundBoundManager::GroundBoundEntry>
+    setGroundBoundFromLemma( const std::shared_ptr<PLCLemma> lemma, bool isPhaseFixing ) override;
 
     /*
      For debugging purpose
@@ -843,7 +846,7 @@ private:
      */
 
     bool _produceUNSATProofs;
-    BoundManager _groundBoundManager;
+    GroundBoundManager _groundBoundManager;
     UnsatCertificateNode *_UNSATCertificate;
     CVC4::context::CDO<UnsatCertificateNode *> *_UNSATCertificateCurrentPointer;
 
@@ -911,6 +914,17 @@ private:
     */
     void writeContradictionToCertificate( const Vector<double> &contradiction,
                                           unsigned infeasibleVar ) const;
+
+
+    /*
+    Analyse dependencies of an explanation vector, resulting in a list of necessary ground bounds
+   */
+    Set<std::shared_ptr<GroundBoundManager::GroundBoundEntry>>
+    analyseExplanationDependencies( const SparseUnsortedList &explanation,
+                                    unsigned id,
+                                    int explainedVar,
+                                    bool isUpper,
+                                    double targetBound );
 };
 
 #endif // __Engine_h__

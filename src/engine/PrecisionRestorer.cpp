@@ -56,25 +56,12 @@ void PrecisionRestorer::restorePrecision( IEngine &engine,
     engine.storeState( targetEngineState, TableauStateStorageLevel::STORE_NONE );
 
     BoundExplainer boundExplainerBackup( targetN, targetM, engine.getContext() );
-    Vector<double> groundUpperBoundsBackup;
-    Vector<double> groundLowerBoundsBackup;
 
     Vector<double> upperBoundsBackup = Vector<double>( targetN, 0 );
     Vector<double> lowerBoundsBackup = Vector<double>( targetN, 0 );
 
     if ( engine.shouldProduceProofs() )
-    {
-        groundUpperBoundsBackup = Vector<double>( targetN, 0 );
-        groundLowerBoundsBackup = Vector<double>( targetN, 0 );
-
         boundExplainerBackup = *engine.getBoundExplainer();
-
-        for ( unsigned i = 0; i < targetN; ++i )
-        {
-            groundUpperBoundsBackup[i] = engine.getGroundBound( i, Tightening::UB );
-            groundLowerBoundsBackup[i] = engine.getGroundBound( i, Tightening::LB );
-        }
-    }
 
     for ( unsigned i = 0; i < targetN; ++i )
     {
@@ -143,12 +130,6 @@ void PrecisionRestorer::restorePrecision( IEngine &engine,
 
     for ( unsigned i = 0; i < targetN; ++i )
     {
-        if ( engine.shouldProduceProofs() )
-        {
-            engine.updateGroundUpperBound( i, groundUpperBoundsBackup[i] );
-            engine.updateGroundLowerBound( i, groundLowerBoundsBackup[i] );
-        }
-
         tableau.tightenUpperBoundNaively( i, upperBoundsBackup[i] );
         tableau.tightenLowerBoundNaively( i, lowerBoundsBackup[i] );
     }
@@ -156,7 +137,7 @@ void PrecisionRestorer::restorePrecision( IEngine &engine,
     if ( engine.shouldProduceProofs() )
         engine.setBoundExplainerContent( &boundExplainerBackup );
 
-    tableau.updateVariablesToComplyWithBounds();
+    engine.propagateBoundManagerTightenings();
 
     // Restore constraint status
     for ( const auto &pair : targetEngineState._plConstraintToState )
@@ -175,12 +156,6 @@ void PrecisionRestorer::restorePrecision( IEngine &engine,
             ASSERT( plc->getPhaseStatus() == plcStatusBefore.get( plc ).first() );
             ASSERT( plc->isActive() == plcStatusBefore.get( plc ).second() );
         }
-
-        EngineState currentEngineState;
-        engine.storeState( currentEngineState, TableauStateStorageLevel::STORE_NONE );
-
-        ASSERT( currentEngineState._numPlConstraintsDisabledByValidSplits ==
-                targetEngineState._numPlConstraintsDisabledByValidSplits );
 
         tableau.verifyInvariants();
     } );

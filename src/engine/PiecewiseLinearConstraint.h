@@ -48,6 +48,7 @@
 #define __PiecewiseLinearConstraint_h__
 
 #include "FloatUtils.h"
+#include "GroundBoundManager.h"
 #include "GurobiWrapper.h"
 #include "IBoundManager.h"
 #include "ITableau.h"
@@ -68,6 +69,7 @@ class BoundManager;
 class ITableau;
 class Query;
 class String;
+class SearchTreeHandler;
 
 #define TWO_PHASE_PIECEWISE_LINEAR_CONSTRAINT 2u
 
@@ -248,7 +250,9 @@ public:
       Transform the piecewise linear constraint so that each disjunct contains
       only bound constraints.
     */
-    virtual void transformToUseAuxVariables( Query & ){};
+    virtual void transformToUseAuxVariables( Query & )
+    {
+    }
 
     void setStatistics( Statistics *statistics );
 
@@ -500,6 +504,17 @@ public:
         return _tableauAuxVars;
     }
 
+    inline std::shared_ptr<GroundBoundManager::GroundBoundEntry> getPhaseFixingEntry() const
+    {
+        return _cdPhaseFixingEntry->get();
+    }
+
+    inline void setPhaseFixingEntry(
+        const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &groundBoundEntry )
+    {
+        _cdPhaseFixingEntry->set( groundBoundEntry );
+    }
+
 protected:
     unsigned _numCases; // Number of possible cases/phases for this constraint
                         // (e.g. 2 for ReLU, ABS, SIGN; >=2 for Max and Disjunction )
@@ -543,6 +558,8 @@ protected:
       The gurobi object for solving the LPs during the search.
     */
     GurobiWrapper *_gurobi;
+    
+    CVC4::context::CDO<std::shared_ptr<GroundBoundManager::GroundBoundEntry>> *_cdPhaseFixingEntry;
 
     /*
       Initialize CDOs.
@@ -550,6 +567,7 @@ protected:
     void initializeCDActiveStatus();
     void initializeCDPhaseStatus();
     void initializeCDInfeasibleCases();
+    void initializeCDPhaseFixingEntry();
 
     /*
        Method provided to allow safe copying of the context-dependent members,
