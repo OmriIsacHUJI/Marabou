@@ -3926,6 +3926,8 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
     Vector<double> gub;
     Vector<double> glb;
 
+    // Set up the correct context for dependency minimization of a lemma
+    // i.e., used ground bounds learned up to that point
     if ( GlobalConfiguration::MINIMIZE_PROOF_DEPENDENCIES )
     {
         gub = Vector<double>( _tableau->getN(), 0 );
@@ -3952,6 +3954,8 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
 
             entries.insert( entry );
 
+            // Record the contribution to the explanation, for all minimization candidates (exclude
+            // lemmas already required for the proof by a previous execution of the algorithm )
             if ( GlobalConfiguration::MINIMIZE_PROOF_DEPENDENCIES && entry.get() && entry->lemma &&
                  !entry->lemma->getToCheck() )
             {
@@ -3972,6 +3976,7 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
                     : UNSATCertificateUtils::computeCombinationLowerBound(
                           linearCombination, gub.data(), glb.data(), _tableau->getN() );
 
+        // Sort by contributions
         std::sort(
             contributions.begin(),
             contributions.end(),
@@ -3980,6 +3985,7 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
                 return abs( std::get<0>( a ) ) < abs( std::get<0>( b ) );
             } );
 
+        // Minimize dependencies, if possible
         if ( explainedVar < 0 || ( isUpper && explanationBound <= targetBound ) ||
              ( !isUpper && explanationBound >= targetBound ) )
         {
@@ -3998,7 +4004,7 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
         }
     }
 
-
+    // Record all lemmas required to the proof, and apply the algorithm recursively
     for ( const auto &entry : entries )
     {
         ASSERT( entry->id < id );

@@ -24,43 +24,59 @@
 #include "context/cdo.h"
 #include "context/context.h"
 
+/*
+ A class to manage all ground bounds updates
+*/
 class GroundBoundManager
 {
 public:
+    /*
+     A struct representing ground bounds, whose learning cannot be explained using a single Farkas
+     vector. Entries include bookkeeping of data used for proof minimization, such as id and which
+     lemma was used to derive them
+    */
     struct GroundBoundEntry
     {
         GroundBoundEntry( unsigned id,
                           double val,
                           const std::shared_ptr<PLCLemma> &lemma,
-                          const Set<int> &clause,
                           bool isPhaseFixing )
             : id( id )
             , val( val )
             , lemma( lemma )
-            , clause( clause )
             , isPhaseFixing( isPhaseFixing )
         {
         }
         unsigned id;
         double val;
         const std::shared_ptr<PLCLemma> lemma;
-        Set<int> clause;
-        bool isPhaseFixing;
+        bool isPhaseFixing; // Preparation for CDCL-based solving
         Set<std::shared_ptr<GroundBoundManager::GroundBoundEntry>> depList;
     };
 
     GroundBoundManager( CVC4::context::Context &ctx );
     ~GroundBoundManager();
 
+    /*
+     Initialize internal data structures
+    */
     void initialize( unsigned size );
+
+    /*
+     Update the ground bounds, manually or by learning a lemma
+    */
     std::shared_ptr<GroundBoundManager::GroundBoundEntry>
     addGroundBound( unsigned index,
                     double value,
                     Tightening::BoundType boundType,
                     bool isPhaseFixing );
+
     std::shared_ptr<GroundBoundManager::GroundBoundEntry>
     addGroundBound( const std::shared_ptr<PLCLemma> &lemma, bool isPhaseFixing );
 
+    /*
+     Getters for ground bounds
+    */
     double getGroundBound( unsigned index, Tightening::BoundType boundType ) const;
 
     std::shared_ptr<GroundBoundManager::GroundBoundEntry>
@@ -71,14 +87,13 @@ public:
 
     double
     getGroundBoundUpToId( unsigned index, Tightening::BoundType boundType, unsigned id ) const;
+
     Vector<double> getAllGroundBounds( Tightening::BoundType boundType ) const;
-    Vector<double> getAllInitialGroundBounds( Tightening::BoundType boundType ) const;
 
+    /*
+     Get the current value of the unique id counter
+    */
     unsigned getCounter() const;
-
-    void
-    addClauseToGroundBoundEntry( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &entry,
-                                 const Set<int> &clause );
 
 private:
     CVC4::context::CDO<unsigned> *_counter;

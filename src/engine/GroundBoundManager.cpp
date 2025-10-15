@@ -26,6 +26,7 @@ GroundBoundManager::GroundBoundManager( CVC4::context::Context &ctx )
 {
     _counter = new ( true ) CVC4::context::CDO<unsigned>( &_context, 0 );
 }
+
 GroundBoundManager::~GroundBoundManager()
 {
     _counter->deleteSelf();
@@ -58,9 +59,9 @@ GroundBoundManager::addGroundBound( unsigned index,
 {
     const Vector<CVC4::context::CDList<std::shared_ptr<GroundBoundEntry>> *> &temp =
         boundType == Tightening::UB ? _upperGroundBounds : _lowerGroundBounds;
-    std::shared_ptr<GroundBoundEntry> groundBoundEntry(
-        new GroundBoundEntry( _counter->get(), value, nullptr, Set<int>(), isPhaseFixing ) );
 
+    std::shared_ptr<GroundBoundEntry> groundBoundEntry(
+        new GroundBoundEntry( _counter->get(), value, nullptr, isPhaseFixing ) );
 
     if ( !temp[index]->empty() )
     {
@@ -79,10 +80,12 @@ GroundBoundManager::addGroundBound( const std::shared_ptr<PLCLemma> &lemma, bool
 {
     Tightening::BoundType isUpper = lemma->getAffectedVarBound();
     unsigned index = lemma->getAffectedVar();
+
     const Vector<CVC4::context::CDList<std::shared_ptr<GroundBoundEntry>> *> &temp =
         isUpper == Tightening::UB ? _upperGroundBounds : _lowerGroundBounds;
-    std::shared_ptr<GroundBoundEntry> groundBoundEntry( new GroundBoundEntry(
-        _counter->get(), lemma->getBound(), lemma, Set<int>(), isPhaseFixing ) );
+
+    std::shared_ptr<GroundBoundEntry> groundBoundEntry(
+        new GroundBoundEntry( _counter->get(), lemma->getBound(), lemma, isPhaseFixing ) );
 
     if ( !temp[index]->empty() )
     {
@@ -155,24 +158,4 @@ Vector<double> GroundBoundManager::getAllGroundBounds( Tightening::BoundType bou
 unsigned GroundBoundManager::getCounter() const
 {
     return _counter->get();
-}
-
-void GroundBoundManager::addClauseToGroundBoundEntry(
-    const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &entry,
-    const Set<int> &clause )
-{
-    entry->clause = clause;
-}
-
-Vector<double>
-GroundBoundManager::getAllInitialGroundBounds( Tightening::BoundType boundType ) const
-{
-    const Vector<CVC4::context::CDList<std::shared_ptr<GroundBoundEntry>> *> &temp =
-        boundType == Tightening::UB ? _upperGroundBounds : _lowerGroundBounds;
-    Vector<double> bots = Vector<double>( 0 );
-
-    for ( const auto &GBList : temp )
-        bots.append( ( *GBList->begin() )->val );
-
-    return bots;
 }
