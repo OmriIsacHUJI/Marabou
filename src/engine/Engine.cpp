@@ -3915,8 +3915,17 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
             _groundBoundManager.getGroundBoundEntryUpToId(
                 explainedVar, isUpper ? Tightening::UB : Tightening::LB, id );
 
-        if ( entry->lemma )
+        if ( entry->lemma && !entry->lemma->getToCheck() )
+        {
             entry->lemma->setToCheck();
+            _statistics.incUnsignedAttribute( Statistics::NUM_LEMMAS_USED );
+        }
+
+        analyseExplanationDependencies( entry->lemma->getExplanations().front(),
+                                        entry->id,
+                                        entry->lemma->getCausingVars().front(),
+                                        entry->lemma->getCausingVarBound() == Tightening::UB,
+                                        entry->lemma->getMinTargetBound() );
 
         return { entry };
     }
