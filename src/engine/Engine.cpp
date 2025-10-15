@@ -3909,6 +3909,7 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
                                         bool isUpper,
                                         double targetBound )
 {
+    // If explanation is empty, use the entry of the ground bound
     if ( explanation.empty() && explainedVar >= 0 )
     {
         std::shared_ptr<GroundBoundManager::GroundBoundEntry> entry =
@@ -3919,13 +3920,13 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
         {
             entry->lemma->setToCheck();
             _statistics.incUnsignedAttribute( Statistics::NUM_LEMMAS_USED );
-        }
 
-        analyseExplanationDependencies( entry->lemma->getExplanations().front(),
-                                        entry->id,
-                                        entry->lemma->getCausingVars().front(),
-                                        entry->lemma->getCausingVarBound() == Tightening::UB,
-                                        entry->lemma->getMinTargetBound() );
+            analyseExplanationDependencies( entry->lemma->getExplanations().front(),
+                                            entry->id,
+                                            entry->lemma->getCausingVars().front(),
+                                            entry->lemma->getCausingVarBound() == Tightening::UB,
+                                            entry->lemma->getMinTargetBound() );
+        }
 
         return { entry };
     }
@@ -4039,12 +4040,6 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
             std::_List_const_iterator<unsigned int> it = entry->lemma->getCausingVars().begin();
             for ( const auto &expl : entry->lemma->getExplanations() )
             {
-                if ( expl.empty() )
-                {
-                    std::advance( it, 1 );
-                    continue;
-                }
-
                 analyseExplanationDependencies( expl,
                                                 entry->id,
                                                 *it,
