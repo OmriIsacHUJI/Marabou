@@ -236,9 +236,9 @@ public:
         return 0.0;
     }
 
-    void updateGroundUpperBound( unsigned /* var */, double /* value */ ) {};
+    void updateGroundUpperBound( unsigned /* var */, double /* value */ ){};
 
-    void updateGroundLowerBound( unsigned /*var*/, double /*value*/ ) {};
+    void updateGroundLowerBound( unsigned /*var*/, double /*value*/ ){};
 
     double getGroundBound( unsigned /*var*/, bool /*isUpper*/ ) const override
     {
