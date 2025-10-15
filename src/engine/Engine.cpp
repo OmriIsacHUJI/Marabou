@@ -3909,10 +3909,17 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
                                         bool isUpper,
                                         double targetBound )
 {
-
     if ( explanation.empty() && explainedVar >= 0 )
-        return { _groundBoundManager.getGroundBoundEntryUpToId(
-            explainedVar, isUpper ? Tightening::UB : Tightening::LB, id ) };
+    {
+        std::shared_ptr<GroundBoundManager::GroundBoundEntry> entry =
+            _groundBoundManager.getGroundBoundEntryUpToId(
+                explainedVar, isUpper ? Tightening::UB : Tightening::LB, id );
+
+        if ( entry->lemma )
+            entry->lemma->setToCheck();
+
+        return { entry };
+    }
 
     Vector<double> linearCombination( 0 );
     UNSATCertificateUtils::getExplanationRowCombination(
