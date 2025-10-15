@@ -253,14 +253,14 @@ public:
     /*
       Returns true iff the engine is in proof production mode
     */
-    bool shouldProduceProofs() const;
+    bool shouldProduceProofs() const override;
 
     /*
       Return all ground bounds as a vector
     */
-    double getGroundBound( unsigned var, bool isUpper ) const;
+    double getGroundBound( unsigned var, bool isUpper ) const override;
     std::shared_ptr<GroundBoundManager::GroundBoundEntry> getGroundBoundEntry( unsigned var,
-                                                                               bool isUpper ) const;
+                                                                               bool isUpper ) const override;
 
     /*
       Get the current pointer of the UNSAT certificate
