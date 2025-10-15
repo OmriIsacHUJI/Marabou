@@ -72,7 +72,7 @@ public:
     List<Bound> lastLowerBounds;
     List<Bound> lastUpperBounds;
     List<Equation> lastEquations;
-    void applySplit( const PiecewiseLinearCaseSplit &split )
+    void applySplit( const PiecewiseLinearCaseSplit &split ) override
     {
         List<Tightening> bounds = split.getBoundTightenings();
         auto equations = split.getEquations();
@@ -94,29 +94,29 @@ public:
         }
     }
 
-    void postContextPopHook(){};
+    void postContextPopHook() override {};
 
-    void preContextPushHook(){};
+    void preContextPushHook() override {};
 
     mutable EngineState *lastStoredState;
-    void storeState( EngineState &state, TableauStateStorageLevel /*level*/ ) const
+    void storeState( EngineState &state, TableauStateStorageLevel /*level*/ ) const override
     {
         lastStoredState = &state;
     }
 
     const EngineState *lastRestoredState;
-    void restoreState( const EngineState &state )
+    void restoreState( const EngineState &state ) override
     {
         lastRestoredState = &state;
     }
 
-    void setNumPlConstraintsDisabledByValidSplits( unsigned /* numConstraints */ )
+    void setNumPlConstraintsDisabledByValidSplits( unsigned /* numConstraints */ ) override
     {
     }
 
     unsigned _timeToSolve;
     IEngine::ExitCode _exitCode;
-    bool solve( double timeoutInSeconds )
+    bool solve( double timeoutInSeconds ) override
     {
         if ( timeoutInSeconds >= _timeToSolve )
             _exitCode = IEngine::TIMEOUT;
@@ -133,12 +133,12 @@ public:
         _exitCode = exitCode;
     }
 
-    IEngine::ExitCode getExitCode() const
+    IEngine::ExitCode getExitCode() const override
     {
         return _exitCode;
     }
 
-    void reset()
+    void reset() override
     {
     }
 
@@ -148,7 +148,7 @@ public:
         _inputVariables = inputVariables;
     }
 
-    List<unsigned> getInputVariables() const
+    List<unsigned> getInputVariables() const override
     {
         return _inputVariables;
     }
@@ -158,14 +158,14 @@ public:
     }
 
     mutable SearchTreeState *lastRestoredSearchTreeState;
-    bool restoreSearchTreeState( SearchTreeState &searchTreeState )
+    bool restoreSearchTreeState( SearchTreeState &searchTreeState ) override
     {
         lastRestoredSearchTreeState = &searchTreeState;
         return true;
     }
 
     mutable SearchTreeState *lastStoredSearchTreeState;
-    void storeSearchTreeState( SearchTreeState &searchTreeState )
+    void storeSearchTreeState( SearchTreeState &searchTreeState ) override
     {
         lastStoredSearchTreeState = &searchTreeState;
     }
@@ -176,7 +176,7 @@ public:
         _constraintsToSplit.append( constraint );
     }
 
-    PiecewiseLinearConstraint *pickSplitPLConstraint( DivideStrategy /**/ )
+    PiecewiseLinearConstraint *pickSplitPLConstraint( DivideStrategy /**/ ) override
     {
         if ( !_constraintsToSplit.empty() )
         {
@@ -188,7 +188,7 @@ public:
             return NULL;
     }
 
-    PiecewiseLinearConstraint *pickSplitPLConstraintSnC( SnCDivideStrategy /**/ )
+    PiecewiseLinearConstraint *pickSplitPLConstraintSnC( SnCDivideStrategy /**/ ) override
     {
         if ( !_constraintsToSplit.empty() )
         {
@@ -203,44 +203,44 @@ public:
     bool _snc;
     CVC4::context::Context _context;
 
-    void applySnCSplit( PiecewiseLinearCaseSplit /*split*/, String /*queryId*/ )
+    void applySnCSplit( PiecewiseLinearCaseSplit /*split*/, String /*queryId*/ ) override
     {
         _snc = true;
         _context.push();
     }
 
-    bool inSnCMode() const
+    bool inSnCMode() const override
     {
         return _snc;
     }
 
-    void applyAllBoundTightenings(){};
+    void applyAllBoundTightenings() override {};
 
-    bool applyAllValidConstraintCaseSplits()
+    bool applyAllValidConstraintCaseSplits() override
     {
         return false;
     };
 
-    CVC4::context::Context &getContext()
+    CVC4::context::Context &getContext() override
     {
         return _context;
     }
 
-    bool consistentBounds() const
+    bool consistentBounds() const override
     {
         return true;
     }
 
-    double explainBound( unsigned /* var */, bool /* isUpper */ ) const
+    double explainBound( unsigned /* var */, bool /* isUpper */ ) const override
     {
         return 0.0;
     }
 
-    void updateGroundUpperBound( unsigned /* var */, double /* value */ ){};
+    void updateGroundUpperBound( unsigned /* var */, double /* value */ ) {};
 
-    void updateGroundLowerBound( unsigned /*var*/, double /*value*/ ){};
+    void updateGroundLowerBound( unsigned /*var*/, double /*value*/ ) {};
 
-    double getGroundBound( unsigned /*var*/, bool /*isUpper*/ ) const
+    double getGroundBound( unsigned /*var*/, bool /*isUpper*/ ) const override
     {
         return 0;
     }
@@ -250,37 +250,37 @@ public:
         return nullptr;
     }
 
-    UnsatCertificateNode *getUNSATCertificateCurrentPointer() const
+    UnsatCertificateNode *getUNSATCertificateCurrentPointer() const override
     {
         return NULL;
     }
 
-    void setUNSATCertificateCurrentPointer( UnsatCertificateNode * /* node*/ ){};
+    void setUNSATCertificateCurrentPointer( UnsatCertificateNode * /* node*/ ) override {};
 
-    const UnsatCertificateNode *getUNSATCertificateRoot() const
+    const UnsatCertificateNode *getUNSATCertificateRoot() const override
     {
         return NULL;
     }
 
-    bool certifyUNSATCertificate()
+    bool certifyUNSATCertificate() override
     {
         return true;
     }
 
-    void explainSimplexFailure(){};
+    void explainSimplexFailure() override {};
 
-    const BoundExplainer *getBoundExplainer() const
+    const BoundExplainer *getBoundExplainer() const override
     {
         return NULL;
     }
 
-    void setBoundExplainerContent( BoundExplainer * /*boundExplainer */ ){};
+    void setBoundExplainerContent( BoundExplainer * /*boundExplainer */ ) override {};
 
-    void propagateBoundManagerTightenings()
+    void propagateBoundManagerTightenings() override
     {
     }
 
-    bool shouldProduceProofs() const
+    bool shouldProduceProofs() const override
     {
         return true;
     }
@@ -297,7 +297,7 @@ public:
         return NULL;
     }
 
-    void incNumOfLemmas(){};
+    void incNumOfLemmas() override {};
 };
 
 #endif // __MockEngine_h__
