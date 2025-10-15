@@ -94,9 +94,9 @@ public:
         }
     }
 
-    void postContextPopHook() override {};
+    void postContextPopHook() override{};
 
-    void preContextPushHook() override {};
+    void preContextPushHook() override{};
 
     mutable EngineState *lastStoredState;
     void storeState( EngineState &state, TableauStateStorageLevel /*level*/ ) const override
@@ -214,7 +214,7 @@ public:
         return _snc;
     }
 
-    void applyAllBoundTightenings() override {};
+    void applyAllBoundTightenings() override{};
 
     bool applyAllValidConstraintCaseSplits() override
     {
@@ -255,7 +255,7 @@ public:
         return NULL;
     }
 
-    void setUNSATCertificateCurrentPointer( UnsatCertificateNode * /* node*/ ) override {};
+    void setUNSATCertificateCurrentPointer( UnsatCertificateNode * /* node*/ ) override{};
 
     const UnsatCertificateNode *getUNSATCertificateRoot() const override
     {
@@ -267,14 +267,14 @@ public:
         return true;
     }
 
-    void explainSimplexFailure() override {};
+    void explainSimplexFailure() override{};
 
     const BoundExplainer *getBoundExplainer() const override
     {
         return NULL;
     }
 
-    void setBoundExplainerContent( BoundExplainer * /*boundExplainer */ ) override {};
+    void setBoundExplainerContent( BoundExplainer * /*boundExplainer */ ) override{};
 
     void propagateBoundManagerTightenings() override
     {
@@ -297,7 +297,7 @@ public:
         return NULL;
     }
 
-    void incNumOfLemmas() override {};
+    void incNumOfLemmas() override{};
 };
 
 #endif // __MockEngine_h__
