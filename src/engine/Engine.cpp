@@ -4010,7 +4010,7 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
         ASSERT( entry->id < id );
 
         if ( entry->lemma && !entry->lemma->getExplanations().empty() &&
-             !entry->lemma->getExplanations().front().empty() && !entry->lemma->getToCheck() )
+             !entry->lemma->getToCheck() )
         {
             entry->lemma->setToCheck();
 
