@@ -3910,8 +3910,9 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
                                         double targetBound )
 {
     // If explanation is empty, use the entry of the ground bound
-    if ( explanation.empty() && explainedVar >= 0 )
+    if ( explanation.empty() )
     {
+        ASSERT( explainedVar >= 0 );
         std::shared_ptr<GroundBoundManager::GroundBoundEntry> entry =
             _groundBoundManager.getGroundBoundEntryUpToId(
                 explainedVar, isUpper ? Tightening::UB : Tightening::LB, id );

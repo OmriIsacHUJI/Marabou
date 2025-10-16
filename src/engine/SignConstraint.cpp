@@ -389,6 +389,9 @@ void SignConstraint::notifyLowerBound( unsigned variable, double bound )
     // Otherwise - update bound
     setLowerBound( variable, bound );
 
+    if ( phaseFixed() )
+        return;
+
     if ( variable == _f && FloatUtils::gt( bound, -1 ) )
     {
         setPhaseStatus( PhaseStatus::SIGN_PHASE_POSITIVE );
@@ -439,6 +442,9 @@ void SignConstraint::notifyUpperBound( unsigned variable, double bound )
 
     // Otherwise - update bound
     setUpperBound( variable, bound );
+
+    if ( phaseFixed() )
+        return;
 
     if ( variable == _f && FloatUtils::lt( bound, 1 ) )
     {

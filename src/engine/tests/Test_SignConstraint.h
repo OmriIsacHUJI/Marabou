@@ -888,16 +888,18 @@ public:
                 // Tighter lower bound for b/f that is positive
                 MockBoundManager boundManager;
                 boundManager.initialize( 6 );
-                SignConstraint sign = prepareSign( b, f, &boundManager );
+                SignConstraint sign1 = prepareSign( b, f, &boundManager );
+                SignConstraint sign2 = prepareSign( b, f, &boundManager );
+
                 boundManager.clearTightenings();
 
-                sign.notifyLowerBound( b, 1 );
+                sign1.notifyLowerBound( b, 1 );
                 boundManager.getTightenings( tightenings );
                 TS_ASSERT_EQUALS( tightenings.size(), 1U );
                 TS_ASSERT( tightenings.exists( Tightening( f, 1, Tightening::LB ) ) );
                 tightenings.clear();
 
-                sign.notifyUpperBound( f, -0.5 );
+                sign2.notifyUpperBound( f, -0.5 );
                 boundManager.getTightenings( tightenings );
                 TS_ASSERT( tightenings.exists( Tightening( f, -1, Tightening::UB ) ) );
                 tightenings.clear();
