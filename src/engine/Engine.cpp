@@ -3912,6 +3912,7 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
     // If explanation is empty, use the entry of the ground bound
     if ( explanation.empty() )
     {
+        // Ensure the explanations explains the infeasibility of a leaf
         ASSERT( explainedVar >= 0 );
         std::shared_ptr<GroundBoundManager::GroundBoundEntry> entry =
             _groundBoundManager.getGroundBoundEntryUpToId(
@@ -3936,6 +3937,8 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
     UNSATCertificateUtils::getExplanationRowCombination(
         explanation, linearCombination, _tableau->getSparseA(), _tableau->getN() );
 
+    // Add 1 to the coefficient of the variable whose bound is explained, as in
+    // UNSATCertificateUtils::getExplanationRowCombination
     if ( explainedVar >= 0 )
         linearCombination[explainedVar]++;
 
