@@ -173,7 +173,7 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
                 // If we're in the active phase, aux should be 0
                 if ( proofs && _auxVarInUse )
                     _boundManager->addLemmaExplanationAndTightenBound(
-                        _aux, 0, Tightening::UB, { variable }, Tightening::LB, *this, true, 0 );
+                        _aux, 0, Tightening::UB, { variable }, Tightening::LB, *this, true, bound );
                 else if ( !proofs && _auxVarInUse )
                     _boundManager->tightenUpperBound( _aux, 0 );
 
