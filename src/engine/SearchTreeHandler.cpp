@@ -177,7 +177,7 @@ void SearchTreeHandler::performSplit()
         // Create children for UNSATCertificate current node, and assign a split to each of them
         ASSERT( certificateNode );
         for ( PiecewiseLinearCaseSplit &childSplit : splits )
-            new UnsatCertificateNode( certificateNode, childSplit );
+            new UnsatCertificateNode( certificateNode, childSplit, _constraintForSplitting->getTableauAuxVars().front() );
     }
 
     SearchTreeStackEntry *stackEntry = new SearchTreeStackEntry;

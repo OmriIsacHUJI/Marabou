@@ -35,7 +35,7 @@ enum DelegationStatus : unsigned {
 class UnsatCertificateNode
 {
 public:
-    UnsatCertificateNode( UnsatCertificateNode *parent, PiecewiseLinearCaseSplit split );
+    UnsatCertificateNode( UnsatCertificateNode *parent, PiecewiseLinearCaseSplit split, unsigned splitNum );
     ~UnsatCertificateNode();
 
     /*
@@ -133,12 +133,15 @@ public:
     */
     void deleteUnusedLemmas();
 
+    unsigned getSplitNum() const;
+
 private:
     List<UnsatCertificateNode *> _children;
     UnsatCertificateNode *_parent;
     List<std::shared_ptr<PLCLemma>> _PLCExplanations;
     Contradiction *_contradiction;
     PiecewiseLinearCaseSplit _headSplit;
+    unsigned _splitNum;
 
     // Enables certifying correctness of UNSAT leaves in SAT queries
     bool _hasSATSolution;

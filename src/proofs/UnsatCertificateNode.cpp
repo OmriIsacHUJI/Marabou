@@ -17,10 +17,12 @@
 #include <Options.h>
 
 UnsatCertificateNode::UnsatCertificateNode( UnsatCertificateNode *parent,
-                                            PiecewiseLinearCaseSplit split )
+                                            PiecewiseLinearCaseSplit split,
+                                            unsigned splitNum )
     : _parent( parent )
     , _contradiction( NULL )
     , _headSplit( std::move( split ) )
+    , _splitNum( splitNum )
     , _hasSATSolution( false )
     , _wasVisited( false )
     , _delegationStatus( DelegationStatus::DONT_DELEGATE )
@@ -165,4 +167,9 @@ void UnsatCertificateNode::deleteUnusedLemmas()
         for ( auto &lemma : _PLCExplanations )
             if ( lemma && !lemma->getToCheck() )
                 lemma = nullptr;
+}
+
+unsigned UnsatCertificateNode::getSplitNum() const
+{
+    return _splitNum;
 }

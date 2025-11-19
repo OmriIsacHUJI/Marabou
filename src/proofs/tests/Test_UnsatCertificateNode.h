@@ -30,7 +30,7 @@ public:
         Vector<double> groundUpperBounds( 6, 1 );
         Vector<double> groundLowerBounds( 6, 0 );
 
-        auto *root = new UnsatCertificateNode( NULL, PiecewiseLinearCaseSplit() );
+        auto *root = new UnsatCertificateNode( NULL, PiecewiseLinearCaseSplit(), 0 );
 
         ReluConstraint relu = ReluConstraint( 1, 3 );
         auto splits = relu.getCaseSplits();
@@ -39,8 +39,8 @@ public:
         PiecewiseLinearCaseSplit split1 = splits.back();
         PiecewiseLinearCaseSplit split2 = splits.front();
 
-        auto *child1 = new UnsatCertificateNode( root, split1 );
-        auto *child2 = new UnsatCertificateNode( root, split2 );
+        auto *child1 = new UnsatCertificateNode( root, split1, 1 );
+        auto *child2 = new UnsatCertificateNode( root, split2, 1 );
 
         TS_ASSERT_EQUALS( child1->getParent(), root );
         TS_ASSERT_EQUALS( child2->getParent(), root );
@@ -64,7 +64,7 @@ public:
      */
     void test_contradiction()
     {
-        UnsatCertificateNode root = UnsatCertificateNode( NULL, PiecewiseLinearCaseSplit() );
+        UnsatCertificateNode root = UnsatCertificateNode( NULL, PiecewiseLinearCaseSplit(), 0 );
 
         auto upperBoundExplanation = Vector<double>( 1, 1 );
         auto lowerBoundExplanation = Vector<double>( 1, 1 );
@@ -79,7 +79,7 @@ public:
     */
     void test_plc_explanation_changes()
     {
-        UnsatCertificateNode root = UnsatCertificateNode( NULL, PiecewiseLinearCaseSplit() );
+        UnsatCertificateNode root = UnsatCertificateNode( NULL, PiecewiseLinearCaseSplit(), 0 );
         Vector<SparseUnsortedList> emptyVec;
 
         auto explanation1 = std::shared_ptr<PLCLemma>(

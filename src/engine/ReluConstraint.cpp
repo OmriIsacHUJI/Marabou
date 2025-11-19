@@ -214,15 +214,15 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
                     // If already inactive, tightening is linear
                     if ( getPhaseStatus() == RELU_PHASE_INACTIVE )
                         _boundManager->tightenUpperBound( _aux, -bound, *_tighteningRow );
-                    else if ( getPhaseStatus() == PHASE_NOT_FIXED )
-                        _boundManager->addLemmaExplanationAndTightenBound( _aux,
-                                                                           -bound,
-                                                                           Tightening::UB,
-                                                                           { variable },
-                                                                           Tightening::LB,
-                                                                           *this,
-                                                                           false,
-                                                                           bound );
+//                    else if ( getPhaseStatus() == PHASE_NOT_FIXED )
+//                        _boundManager->addLemmaExplanationAndTightenBound( _aux,
+//                                                                           -bound,
+//                                                                           Tightening::UB,
+//                                                                           { variable },
+//                                                                           Tightening::LB,
+//                                                                           *this,
+//                                                                           false,
+//                                                                           bound );
                 }
                 else
                     _boundManager->tightenUpperBound( _aux, -bound );
@@ -574,8 +574,8 @@ List<PiecewiseLinearConstraint::Fix> ReluConstraint::getSmartFixes( ITableau *ta
 
 List<PiecewiseLinearCaseSplit> ReluConstraint::getCaseSplits() const
 {
-    if ( getPhaseStatus() != PHASE_NOT_FIXED )
-        throw MarabouError( MarabouError::REQUESTED_CASE_SPLITS_FROM_FIXED_CONSTRAINT );
+//    if ( getPhaseStatus() != PHASE_NOT_FIXED )
+//        throw MarabouError( MarabouError::REQUESTED_CASE_SPLITS_FROM_FIXED_CONSTRAINT );
 
     List<PiecewiseLinearCaseSplit> splits;
 
