@@ -33,7 +33,6 @@ public:
                         const List<PiecewiseLinearConstraint *> &problemConstraints,
                         UnsatCertificateNode *root );
 
-    void writeAssumptions();
 
     void writeAletheProof( IFile &file );
 
@@ -53,6 +52,10 @@ private:
 
     unsigned writeAletheProof( const UnsatCertificateNode *node );
 
+    void writeAssumptions();
+
+    void writePLCAssumption();
+
     unsigned applyContradiction( const UnsatCertificateNode *node );
 
     void concludeChildrenUnsat( const UnsatCertificateNode *node,
@@ -61,9 +64,10 @@ private:
 
     void writeInstanceToFile( IFile &file, const List<String> &instance );
 
-    void applyAllLemmas(const UnsatCertificateNode *node);
+    void applyAllLemmas( const UnsatCertificateNode *node );
 
-    void applyReluLemma( const UnsatCertificateNode *node, const PLCLemma &lemma, ReluConstraint *plc );
+    void
+    applyReluLemma( const UnsatCertificateNode *node, const PLCLemma &lemma, ReluConstraint *plc );
 
     void insertCurrentBoundsToVec( bool isUpper, Vector<double> &boundsVec );
 
@@ -77,7 +81,7 @@ private:
 
     String getBoundAsClause( const Tightening &bound );
 
-    String convertTableauAssumptionToClause(unsigned index);
+    String convertTableauAssumptionToClause( unsigned index );
 
     bool isSplitActive( const PiecewiseLinearCaseSplit &split );
 
@@ -89,7 +93,9 @@ private:
                         String &farkasClause,
                         String &farkasParticipants,
                         int explainerVar,
-                        bool isUpper);
+                        bool isUpper );
+
+    void writeDelegatedLeaf( const UnsatCertificateNode *node);
 };
 
 #endif // __AletheProofWriter_h__

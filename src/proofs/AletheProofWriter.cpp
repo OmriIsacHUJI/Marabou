@@ -26,7 +26,7 @@ AletheProofbWriter::AletheProofbWriter( unsigned explanationSize,
     , _n( upperBounds.size() )
     , _m( explanationSize )
     , _stepCounter( 0 )
-    , _lemmaCounter( 0 )
+    , _lemmaCounter( 1 )
 {
     for ( unsigned i = 0; i < _n; ++i )
     {
@@ -83,20 +83,23 @@ void AletheProofbWriter::writeAssumptions()
             continue;
         }
 
-
         ++counter;
-
 
         line.replace( "assert ", String( "assume " ) + assumptionTitle + " " );
         _proof.append( line );
-
 
         if ( isTableau )
             _tableauAssumptions.append( line );
     }
 
+    writePLCAssumption();
+}
+
+void AletheProofbWriter::writePLCAssumption()
+{
     List<String> plcAssumptions = List<String>();
     List<String> plcSplits = List<String>();
+
     for ( const auto &plc : _plc )
     {
         List<PiecewiseLinearCaseSplit> splitsInFixedOrder = List<PiecewiseLinearCaseSplit>();
@@ -118,6 +121,18 @@ void AletheProofbWriter::writeAssumptions()
         String plcAssumption = String( "( assume plc" ) + constraintNum + " ( or " +
                                getSplitsAsClause( splitsInFixedOrder ) + ")  )\n";
 
+        plcAssumption +=
+            String( "( assume i" ) + constraintNum +
+            " ( = " + getBoundAsClause( splitsInFixedOrder.back().getBoundTightenings().front() ) +
+            " " + getBoundAsClause( splitsInFixedOrder.back().getBoundTightenings().back() ) +
+            " ) )\n";
+
+        plcAssumption +=
+            String( "( assume a" ) + constraintNum +
+            " ( = " + getBoundAsClause( splitsInFixedOrder.front().getBoundTightenings().front() ) +
+            " " + getBoundAsClause( splitsInFixedOrder.front().getBoundTightenings().back() ) +
+            " ) )\n";
+
         plcAssumptions.append( plcAssumption );
 
         String plcSplit = String( "( step split" ) + constraintNum + " (cl " +
@@ -133,12 +148,29 @@ void AletheProofbWriter::writeAssumptions()
             {
                 String line = String( "( step split" ) + constraintNum + "_" + isActive +
                               std::to_string( innerCounter ) + " (cl ( not " +
-                              getSplitAsClause( split ) + " )" + getBoundAsClause( bound ) +
+                              getSplitAsClause( split ) + " ) " + getBoundAsClause( bound ) +
                               " ) :rule and_pos :args( " + std::to_string( innerCounter ) +
                               " ) )\n";
                 plcSplits.append( line );
 
                 ++innerCounter;
+            }
+
+            if ( plc->getType() == RELU )
+            {
+                String line1 = String( "( step equiv" ) + constraintNum + "_" + isActive +
+                             +"0 (cl ( not " +
+                               getBoundAsClause( split.getBoundTightenings().front() ) + +" ) " +
+                               getBoundAsClause( split.getBoundTightenings().back() ) +
+                               " ) :rule equiv1 :premises( " + isActive + constraintNum + " ) )\n";
+
+                String line2 = String( "( step equiv" ) + constraintNum + "_" + isActive +
+                             +"1 (cl " + getBoundAsClause( split.getBoundTightenings().front() ) +
+                             +" (not " + getBoundAsClause( split.getBoundTightenings().back() ) +
+                               " ) ) :rule equiv2 :premises( " + isActive + constraintNum +
+                               " ) )\n";
+                plcSplits.append( line1 );
+                plcSplits.append( line2 );
             }
         }
     }
@@ -171,6 +203,8 @@ unsigned AletheProofbWriter::writeAletheProof( const UnsatCertificateNode *node 
 
     if ( node->isValidLeaf() )
         applyContradiction( node );
+    else if ( node->getDelegationStatus() != DONT_DELEGATE )
+        writeDelegatedLeaf( node );
     else if ( node->isValidNonLeaf() )
     {
         List<unsigned> childrenIndices = List<unsigned>();
@@ -181,7 +215,7 @@ unsigned AletheProofbWriter::writeAletheProof( const UnsatCertificateNode *node 
     }
 
     for ( const auto &lemma : node->getPLCLemmas() )
-        if ( lemma.get() ) // TODO && lemma->getToCheck() )
+        if ( lemma.get() && lemma->getToCheck() )
         {
             Tightening::BoundType causingBound = lemma->getCausingVarBound();
             Tightening::BoundType affectedBound = lemma->getAffectedVarBound();
@@ -195,6 +229,7 @@ unsigned AletheProofbWriter::writeAletheProof( const UnsatCertificateNode *node 
             else
                 _currentLowerBounds[lemma->getAffectedVar()].pop();
         }
+
     for ( const auto &bound : node->getSplit().getBoundTightenings() )
         if ( bound._type == Tightening::UB )
             _currentUpperBounds[bound._variable].pop();
@@ -352,7 +387,7 @@ void AletheProofbWriter::applyAllLemmas( const UnsatCertificateNode *node )
 
     for ( const auto &lemma : node->getPLCLemmas() )
     {
-        if ( !lemma.get() ) // TODO || !lemma->getToCheck() )
+        if ( !lemma.get() || !lemma->getToCheck() )
             continue;
         // Make sure propagation was made by a problem constraint
         for ( const auto &constraint : _plc )
@@ -377,14 +412,20 @@ void AletheProofbWriter::applyReluLemma( const UnsatCertificateNode *node,
 {
     ASSERT( plc != NULL );
 
-    // TODO check if they are b f aux for some plc arg
     unsigned causingVar = lemma.getCausingVars().front();
     unsigned affectedVar = lemma.getAffectedVar();
-    unsigned targetBound = lemma.getMinTargetBound();
+    double targetBound = lemma.getMinTargetBound();
     double bound = lemma.getBound();
     const List<SparseUnsortedList> &explanations = lemma.getExplanations();
     Tightening::BoundType causingVarBound = lemma.getCausingVarBound();
     Tightening::BoundType affectedVarBound = lemma.getAffectedVarBound();
+
+    // If bound is not tighter, return
+    if ( ( affectedVarBound == Tightening::UB &&
+           bound > std::get<1>( _currentUpperBounds[affectedVar].top() ) ) ||
+         ( affectedVarBound == Tightening::LB &&
+           bound < std::get<1>( _currentLowerBounds[affectedVar].top() ) ) )
+        return;
 
     ASSERT( explanations.size() == 1 );
 
@@ -403,6 +444,7 @@ void AletheProofbWriter::applyReluLemma( const UnsatCertificateNode *node,
     String farkasArgs = "";
     String farkasClause = "";
     String farkasParticipants = "";
+    String causeBound = getBoundAsClause( Tightening( causingVar, targetBound, causingVarBound ) );
 
     farkasStrings( explanations.front(),
                    farkasArgs,
@@ -411,7 +453,7 @@ void AletheProofbWriter::applyReluLemma( const UnsatCertificateNode *node,
                    causingVar,
                    causingVarBound == Tightening::UB );
 
-    farkasClause += getBoundAsClause( Tightening( causingVar, targetBound, causingVarBound ) );
+    farkasClause += causeBound;
 
     farkasArgs += " 1 ";
     farkasClause += ")";
@@ -421,147 +463,164 @@ void AletheProofbWriter::applyReluLemma( const UnsatCertificateNode *node,
                        farkasClause + " :rule la_generic :args " + farkasArgs;
 
     String res = String( "( step resLem" + std::to_string( _lemmaCounter ) ) + " (cl " +
-                 getPathClause( node ) +
-                 getBoundAsClause( Tightening( causingVar, targetBound, causingVarBound ) ) +
-                 ") :rule resolution :premises (" + getPathResSteps( node ) + " farkasLem" +
-                 std::to_string( _lemmaCounter ) + " " + farkasParticipants + " ) ) \n";
+                 getPathClause( node ) + causeBound + ") :rule resolution :premises (" +
+                 getPathResSteps( node ) + " farkasLem" + std::to_string( _lemmaCounter ) + " " +
+                 farkasParticipants + " ) ) \n";
 
     Vector<Stack<std::tuple<int, double>>> &causingTempVec =
         ( causingVarBound == Tightening::UB ) ? _currentUpperBounds : _currentLowerBounds;
 
-    causingTempVec[causingVar].push( std::tuple<int, double>( _lemmaCounter, targetBound ) );
+    // Use opportunity to learn a better bound
+    double betterBound =
+        ( causingVarBound == Tightening::UB )
+            ? FloatUtils::min( std::get<1>( causingTempVec[causingVar].top() ), targetBound )
+            : FloatUtils::max( std::get<1>( causingTempVec[causingVar].top() ), targetBound );
+
+    causingTempVec[causingVar].push( std::tuple<int, double>( _lemmaCounter, betterBound ) );
 
     ++_lemmaCounter;
-    // TODO prove by each lemma type
+
     unsigned b = plc->getB();
     unsigned f = plc->getF();
     unsigned aux = plc->getAux();
-    unsigned identifier = plc->getTableauAuxVars().front();
+    String identifier = std::to_string( plc->getTableauAuxVars().front() );
+    bool matched = false;
 
     String proofRule = "";
     String proofRuleRes = "";
-    unsigned eqIndex = plc->getTableauAuxVars().front() - _n + _m;
+    String tempString = "";
 
-    String lineLiteral = convertTableauAssumptionToClause( eqIndex );
-    String counterPartBound = String( " ( not " ) +
-                              getBoundAsClause( Tightening( identifier, 0, Tightening::UB ) ) +
-                              ") ";
+    if ( targetBound > 0 )
+        tempString += String( "( not " ) +
+                      getBoundAsClause( Tightening( causingVar, 0, Tightening::UB ) ) + ") ( not " +
+                      causeBound + ") ";
+    else if ( targetBound < 0 )
+        tempString += String( "( not" ) + causeBound + ") ( not " +
+                      getBoundAsClause( Tightening( causingVar, 0, Tightening::LB ) ) + ") ";
 
-    String proofClause =
-        String( "( not " ) +
-        getBoundAsClause( Tightening( causingVar, targetBound, causingVarBound ) ) + ") " +
-        getBoundAsClause( Tightening( affectedVar, bound, affectedVarBound ) );
-
-    proofClause += lineLiteral;
-    proofClause += counterPartBound;
-
-    if ( (causingVar == f || causingVar == b) && causingVarBound == Tightening::LB && affectedVar == aux &&
-         affectedVarBound == Tightening::UB && targetBound > 0 )
+    if ( targetBound != 0 )
     {
-        //        String temp =
-        //            String( "( not " ) + getBoundAsClause( Tightening( b, 0, Tightening::LB ) ) +
-        //            ") ";
-        //
-        //        proofClause += temp;
-        //        proofRule = String( "( step farkasLem" + std::to_string( _lemmaCounter ) ) + "( cl
-        //        " +
-        //                    proofClause + ") :rule la_generic :args (1 1 1 -1 1) )\n";
-        //
-
-        String tempString =
-            String( "( not " ) + getBoundAsClause( Tightening( causingVar, 0, Tightening::UB ) ) +
-            ") ( not " + getBoundAsClause( Tightening( causingVar, targetBound, Tightening::LB ) ) +
-            ")";
-
         proofRule = String( "( step taut" + std::to_string( _lemmaCounter ) + "( cl ( or " ) +
                     tempString + ") ) :rule la_tautology)\n";
         proofRule += String( "( step tautSplit" ) + std::to_string( _lemmaCounter ) + " (cl " +
                      tempString + ") :rule or :premises ( taut" + std::to_string( _lemmaCounter ) +
                      " ) )\n";
+    }
+    String conclusion = getBoundAsClause( Tightening( affectedVar, bound, affectedVarBound ) );
 
+    if ( ( causingVar == f || causingVar == b ) && causingVarBound == Tightening::LB &&
+         affectedVar == aux && affectedVarBound == Tightening::UB && targetBound > 0 )
+    {
+        matched = true;
+        String splitrule = causingVar == f ? "_i1" : "_i0";
         proofRuleRes = String( "( step resLem" + std::to_string( _lemmaCounter ) ) + " ( cl " +
-                       getPathClause( node ) +
-                       getBoundAsClause( Tightening( affectedVar, bound, affectedVarBound ) ) +
+                       getPathClause( node ) + conclusion +
                        ") :rule resolution :premises ( resLem" +
                        std::to_string( _lemmaCounter - 1 ) + " tautSplit" +
-                       std::to_string( _lemmaCounter ) + " split" + std::to_string( identifier ) +
-                       "_i1 split" + std::to_string( identifier ) + " split" +
-                       std::to_string( identifier ) + "_a1 ) ) \n";
+                       std::to_string( _lemmaCounter ) + " split" + identifier + splitrule +
+                       " split" + identifier + " split" + identifier + "_a1 ) ) \n";
+    }
+    else if ( causingVar == b && causingVarBound == Tightening::LB && affectedVar == aux &&
+              affectedVarBound == Tightening::UB && targetBound == 0 )
+    {
+        matched = true;
+        proofRuleRes = String( "( step resLem" + std::to_string( _lemmaCounter ) ) + " ( cl " +
+                       getPathClause( node ) + conclusion +
+                       ") :rule resolution :premises ( resLem" +
+                       std::to_string( _lemmaCounter - 1 ) + " equiv" + identifier + "_a0) ) \n";
+    }
+    // If lb of aux is positive, then ub of f is 0
+    else if ( causingVar == aux && causingVarBound == Tightening::LB && affectedVar == f &&
+              affectedVarBound == Tightening::UB && targetBound > 0 )
+    {
+        matched = true;
 
-        // TODO move to bottom
-        Vector<Stack<std::tuple<int, double>>> &affectedTempVec =
-            ( affectedVarBound == Tightening::UB ) ? _currentUpperBounds : _currentLowerBounds;
-
-        affectedTempVec[affectedVar].push( std::tuple<int, double>( _lemmaCounter, bound ) );
+        proofRuleRes =
+            String( "( step resLem" + std::to_string( _lemmaCounter ) ) + " ( cl " +
+            getPathClause( node ) + conclusion + ") :rule resolution :premises ( resLem" +
+            std::to_string( _lemmaCounter - 1 ) + " tautSplit" + std::to_string( _lemmaCounter ) +
+            " split" + identifier + "_a1 split" + identifier + " split" + identifier + "_i1 ) ) \n";
     }
 
-    /*
-    // If lb of b is non negative, then ub of aux is 0
-    if ( causingVar == b && causingVarBound == Tightening::LB && affectedVar == aux &&
-         affectedVarBound == Tightening::UB && !FloatUtils::isNegative( explainedBound + epsilon ) )
-        return 0;
+    // If ub of b is non positive, then ub of f is 0
+    else if ( causingVar == b && causingVarBound == Tightening::UB && affectedVar == f &&
+              affectedVarBound == Tightening::UB && targetBound < 0 )
+    {
+        matched = true;
 
-    // If lb of f is positive, then ub if aux is 0
-    else if ( causingVar == f && causingVarBound == Tightening::LB && affectedVar == aux &&
-              affectedVarBound == Tightening::UB &&
-              FloatUtils::isPositive( explainedBound + epsilon ) )
-        return 0;
+        proofRuleRes =
+            String( "( step resLem" + std::to_string( _lemmaCounter ) ) + " ( cl " +
+            getPathClause( node ) + conclusion + ") :rule resolution :premises ( resLem" +
+            std::to_string( _lemmaCounter - 1 ) + " tautSplit" + std::to_string( _lemmaCounter ) +
+            " split" + identifier + "_a0 split" + identifier + " split" + identifier + "_i1 ) ) \n";
+    }
+    // Propagate 0 ub from f to b
+    else if ( causingVar == f && causingVarBound == Tightening::UB && affectedVar == b &&
+              affectedVarBound == Tightening::UB && targetBound == 0 )
+    {
+        matched = true;
+        proofRuleRes = String( "( step resLem" + std::to_string( _lemmaCounter ) ) + " ( cl " +
+                       getPathClause( node ) + conclusion +
+                       ") :rule resolution :premises ( resLem" +
+                       std::to_string( _lemmaCounter - 1 ) + " equiv" + identifier + "_i1) ) \n";
+    }
+    else if ( causingVar == b && causingVarBound == Tightening::UB && affectedVar == f &&
+              affectedVarBound == Tightening::UB && targetBound == 0 )
+    {
+        matched = true;
+        proofRuleRes = String( "( step resLem" + std::to_string( _lemmaCounter ) ) + " ( cl " +
+                       getPathClause( node ) + conclusion +
+                       ") :rule resolution :premises ( resLem" +
+                       std::to_string( _lemmaCounter - 1 ) + " equiv" + identifier + "_i0) ) \n";
+    }
+    // If ub of aux is 0, then lb of b is 0
+    else if ( causingVar == aux && causingVarBound == Tightening::UB && affectedVar == b &&
+              affectedVarBound == Tightening::LB && targetBound == 0 )
 
+    {
+        matched = true;
+        proofRuleRes = String( "( step resLem" + std::to_string( _lemmaCounter ) ) + " ( cl " +
+                       getPathClause( node ) + conclusion +
+                       ") :rule resolution :premises ( resLem" +
+                       std::to_string( _lemmaCounter - 1 ) + " equiv" + identifier + "_a1) ) \n";
+    }
+
+    /* TODO support all lemma types
     // If lb of b is negative x, then ub of aux is -x
     else if ( causingVar == b && causingVarBound == Tightening::LB && affectedVar == aux &&
               affectedVarBound == Tightening::UB &&
               FloatUtils::isNegative( explainedBound - epsilon ) )
         return -explainedBound;
 
-    // If lb of aux is positive, then ub of f is 0
-    else if ( causingVar == aux && causingVarBound == Tightening::LB && affectedVar == f &&
-              affectedVarBound == Tightening::UB &&
-              FloatUtils::isPositive( explainedBound + epsilon ) )
-        return 0;
-
-    // If lb of f is negative, then it is 0
-    else if ( causingVar == f && causingVarBound == Tightening::LB && affectedVar == f &&
-              affectedVarBound == Tightening::LB &&
-              FloatUtils::isNegative( explainedBound - epsilon ) )
-        return 0;
-
-    // Propagate ub from f to b
-    else if ( causingVar == f && causingVarBound == Tightening::UB && affectedVar == b &&
-              affectedVarBound == Tightening::UB )
-        return explainedBound;
-
-    // If ub of b is non positive, then ub of f is 0
-    else if ( causingVar == b && causingVarBound == Tightening::UB && affectedVar == f &&
-              affectedVarBound == Tightening::UB &&
-              !FloatUtils::isPositive( explainedBound - epsilon ) )
-        return 0;
-
-    // If ub of b is non positive x, then lb of aux is -x
-    else if ( causingVar == b && causingVarBound == Tightening::UB && affectedVar == aux &&
-              affectedVarBound == Tightening::LB &&
-              !FloatUtils::isPositive( explainedBound - epsilon ) )
-        return -explainedBound;
-
-    // If ub of b is positive, then propagate to f ( positivity of explained bound is not checked
-    // since negative explained ub can always explain positive bound )
+    // If ub of b is positive, then propagate to f
     else if ( causingVar == b && causingVarBound == Tightening::UB && affectedVar == f &&
               affectedVarBound == Tightening::UB &&
               FloatUtils::isPositive( explainedBound + epsilon ) )
         return explainedBound;
 
-    // If ub of aux is x, then lb of b is -x
-    else if ( causingVar == aux && causingVarBound == Tightening::UB && affectedVar == b &&
-              affectedVarBound == Tightening::LB )
-        return -explainedBound;
     */
 
+    Vector<Stack<std::tuple<int, double>>> &affectedTempVec =
+        ( affectedVarBound == Tightening::UB ) ? _currentUpperBounds : _currentLowerBounds;
+    if ( matched )
+    {
+        affectedTempVec[affectedVar].push( std::tuple<int, double>( _lemmaCounter, bound ) );
 
-    _proof.append( laGeneric );
-    _proof.append( res );
-    _proof.append( proofRule );
-    _proof.append( proofRuleRes );
 
-    ++_lemmaCounter;
+        _proof.append( laGeneric );
+        _proof.append( res );
+        _proof.append( proofRule );
+        _proof.append( proofRuleRes );
+        ++_lemmaCounter;
+    }
+    else
+    {
+        // Keep consistency of the stacks with the lemmas
+        std::tuple<int, double> dummy =
+            std::tuple<int, double>( affectedTempVec[affectedVar].top() );
+        affectedTempVec[affectedVar].push( dummy );
+        --_lemmaCounter;
+    }
 }
 
 void AletheProofbWriter::linearCombinationMpq( const std::vector<mpq_t> &explainedRow,
@@ -608,12 +667,11 @@ void AletheProofbWriter::farkasStrings( const SparseUnsortedList &expl,
         mpq_init( num );
 
     linearCombinationMpq( explainedRow, expl );
-    if ( explainedVar > 0 )
+    if ( explainedVar >= 0 )
     {
         mpq_t temp;
         mpq_init( temp );
-        int val = isUpper ? 1 : -1;
-        mpq_set_d( temp, val );
+        mpq_set_d( temp, 1 );
         mpq_add(
             const_cast<mpq_ptr>( explainedRow[explainedVar] ), explainedRow[explainedVar], temp );
         mpq_clear( temp );
@@ -628,7 +686,7 @@ void AletheProofbWriter::farkasStrings( const SparseUnsortedList &expl,
         {
             farkasClause += convertTableauAssumptionToClause( entry._index );
 
-            mpq_class temp( -entry._value );
+            mpq_class temp( isUpper ? -entry._value : entry._value );
             farkasArgs += temp.get_str() + " ";
             farkasParticipants += String( "e" + std::to_string( entry._index ) ) + " ";
         }
@@ -636,7 +694,8 @@ void AletheProofbWriter::farkasStrings( const SparseUnsortedList &expl,
     for ( unsigned i = 0; i < _n; ++i )
     {
         mpq_class temp( explainedRow[i] );
-        if ( mpq_sgn( explainedRow[i] ) > 0 )
+        if ( ( mpq_sgn( explainedRow[i] ) > 0 && isUpper ) ||
+             ( mpq_sgn( explainedRow[i] ) < 0 && !isUpper ) )
         {
             farkasClause +=
                 String( "( not ( <= x" + std::to_string( i ) ) + String( " " ) +
@@ -654,7 +713,8 @@ void AletheProofbWriter::farkasStrings( const SparseUnsortedList &expl,
                             std::to_string( std::get<0>( _currentUpperBounds[i].top() ) ) ) +
                     " ";
         }
-        else if ( mpq_sgn( explainedRow[i] ) < 0 )
+        else if ( ( mpq_sgn( explainedRow[i] ) < 0 && isUpper ) ||
+                  ( mpq_sgn( explainedRow[i] ) > 0 && !isUpper ) )
         {
             farkasClause +=
                 String( "( not ( >= x" + std::to_string( i ) ) + String( " " ) +
@@ -686,4 +746,11 @@ String AletheProofbWriter::convertTableauAssumptionToClause( unsigned index )
     unsigned begin = assumption.find( "=" );
     return String( "(not ( " ) + assumption.substring( begin, assumption.length() - begin - 1 ) +
            " ";
+}
+
+void AletheProofbWriter::writeDelegatedLeaf( const UnsatCertificateNode *node )
+{
+    String proofHole = String( "( step res" + std::to_string( _stepCounter ) ) + " (cl " +
+                       getPathClause( node ) + ") :rule hole ) \n";
+    _proof.append( proofHole );
 }

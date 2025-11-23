@@ -120,7 +120,7 @@ const bool GlobalConfiguration::WRITE_ALETHE_PROOF = true;
 const unsigned GlobalConfiguration::BACKWARD_BOUND_PROPAGATION_DEPTH = 3;
 const unsigned GlobalConfiguration::MAX_ROUNDS_OF_BACKWARD_ANALYSIS = 10;
 
-const bool GlobalConfiguration::ANALYZE_PROOF_DEPENDENCIES = false;
+const bool GlobalConfiguration::ANALYZE_PROOF_DEPENDENCIES = true;
 const bool GlobalConfiguration::MINIMIZE_PROOF_DEPENDENCIES = true;
 
 #ifdef ENABLE_GUROBI

@@ -3721,7 +3721,7 @@ bool Engine::certifyUNSATCertificate()
 
     if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
     {
-        String pref = Options::get()->getString( Options::INPUT_FILE_PATH ).tokenize("/").back();
+        String pref = Options::get()->getString( Options::INPUT_FILE_PATH ).tokenize( "/" ).back();
         File file( pref + ".smt2.alethe" );
         SmtLibWriter::writeToSmtLibFile( pref + ".smt2",
                                          _tableau->getM(),

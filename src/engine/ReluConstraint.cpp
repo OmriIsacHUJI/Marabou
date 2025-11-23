@@ -168,7 +168,7 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
                 createTighteningRow();
 
             // A positive lower bound is always propagated between f and b
-            if ( ( variable == _f || variable == _b ) && bound > 0 )
+            if ( ( variable == _f || variable == _b ) && FloatUtils::isPositive( bound ) )
             {
                 // If we're in the active phase, aux should be 0
                 if ( proofs && _auxVarInUse )
@@ -194,11 +194,11 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
 
             // A positive lower bound for aux means we're inactive: f is 0, b is
             // non-positive When inactive, b = -aux
-            else if ( _auxVarInUse && variable == _aux && bound > 0 )
+            else if ( _auxVarInUse && variable == _aux && FloatUtils::isPositive( bound ) )
             {
                 if ( proofs )
                     _boundManager->addLemmaExplanationAndTightenBound(
-                        _f, 0, Tightening::UB, { variable }, Tightening::LB, *this, true, 0 );
+                        _f, 0, Tightening::UB, { variable }, Tightening::LB, *this, true, bound );
                 else
                     _boundManager->tightenUpperBound( _f, 0 );
 
@@ -214,15 +214,16 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
                     // If already inactive, tightening is linear
                     if ( getPhaseStatus() == RELU_PHASE_INACTIVE )
                         _boundManager->tightenUpperBound( _aux, -bound, *_tighteningRow );
-//                    else if ( getPhaseStatus() == PHASE_NOT_FIXED )
-//                        _boundManager->addLemmaExplanationAndTightenBound( _aux,
-//                                                                           -bound,
-//                                                                           Tightening::UB,
-//                                                                           { variable },
-//                                                                           Tightening::LB,
-//                                                                           *this,
-//                                                                           false,
-//                                                                           bound );
+                    else if ( getPhaseStatus() == PHASE_NOT_FIXED &&
+                              !GlobalConfiguration::WRITE_ALETHE_PROOF )
+                        _boundManager->addLemmaExplanationAndTightenBound( _aux,
+                                                                           -bound,
+                                                                           Tightening::UB,
+                                                                           { variable },
+                                                                           Tightening::LB,
+                                                                           *this,
+                                                                           false,
+                                                                           bound );
                 }
                 else
                     _boundManager->tightenUpperBound( _aux, -bound );
@@ -230,7 +231,7 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
 
             // Also, if for some reason we only know a negative lower bound for
             // f, we attempt to tighten it to 0
-            else if ( bound < 0 && variable == _f )
+            else if ( bound < 0 && variable == _f && !GlobalConfiguration::WRITE_ALETHE_PROOF )
             {
                 if ( proofs )
                     _boundManager->addLemmaExplanationAndTightenBound(
@@ -278,14 +279,15 @@ void ReluConstraint::notifyUpperBound( unsigned variable, double newBound )
                     else
                     {
                         if ( !FloatUtils::isPositive( bound ) )
-                            _boundManager->addLemmaExplanationAndTightenBound( _b,
-                                                                               0,
-                                                                               Tightening::UB,
-                                                                               { variable },
-                                                                               Tightening::UB,
-                                                                               *this,
-                                                                               true,
-                                                                               0 );
+                            _boundManager->addLemmaExplanationAndTightenBound(
+                                _b,
+                                0,
+                                Tightening::UB,
+                                { variable },
+                                Tightening::UB,
+                                *this,
+                                true,
+                                FloatUtils::isZero( bound ) ? 0 : bound );
                         // Bound cannot be negative if ReLU is inactive
                         if ( FloatUtils::isNegative( bound ) )
                             throw InfeasibleQueryException();
@@ -301,7 +303,14 @@ void ReluConstraint::notifyUpperBound( unsigned variable, double newBound )
                     // If b has a non-positive upper bound, f's upper bound is 0
                     if ( proofs )
                         _boundManager->addLemmaExplanationAndTightenBound(
-                            _f, 0, Tightening::UB, { variable }, Tightening::UB, *this, true, 0 );
+                            _f,
+                            0,
+                            Tightening::UB,
+                            { variable },
+                            Tightening::UB,
+                            *this,
+                            true,
+                            FloatUtils::isZero( bound ) ? 0 : bound );
                     else
                         _boundManager->tightenUpperBound( _f, 0 );
 
@@ -318,7 +327,8 @@ void ReluConstraint::notifyUpperBound( unsigned variable, double newBound )
                         // If already inactive, tightening is linear
                         if ( getPhaseStatus() == RELU_PHASE_ACTIVE )
                             _boundManager->tightenUpperBound( _f, bound, *_tighteningRow );
-                        else if ( getPhaseStatus() == PHASE_NOT_FIXED )
+                        else if ( getPhaseStatus() == PHASE_NOT_FIXED &&
+                                  !GlobalConfiguration::WRITE_ALETHE_PROOF )
                             _boundManager->addLemmaExplanationAndTightenBound( _f,
                                                                                bound,
                                                                                Tightening::UB,
@@ -341,14 +351,15 @@ void ReluConstraint::notifyUpperBound( unsigned variable, double newBound )
                     else
                     {
                         if ( !FloatUtils::isPositive( bound ) )
-                            _boundManager->addLemmaExplanationAndTightenBound( _b,
-                                                                               0,
-                                                                               Tightening::LB,
-                                                                               { variable },
-                                                                               Tightening::UB,
-                                                                               *this,
-                                                                               true,
-                                                                               0 );
+                            _boundManager->addLemmaExplanationAndTightenBound(
+                                _b,
+                                0,
+                                Tightening::LB,
+                                { variable },
+                                Tightening::UB,
+                                *this,
+                                true,
+                                FloatUtils::isZero( bound ) ? 0 : bound );
                         // Bound cannot be negative if ReLU is active
                         if ( FloatUtils::isNegative( bound ) )
                             throw InfeasibleQueryException();
@@ -574,8 +585,8 @@ List<PiecewiseLinearConstraint::Fix> ReluConstraint::getSmartFixes( ITableau *ta
 
 List<PiecewiseLinearCaseSplit> ReluConstraint::getCaseSplits() const
 {
-//    if ( getPhaseStatus() != PHASE_NOT_FIXED )
-//        throw MarabouError( MarabouError::REQUESTED_CASE_SPLITS_FROM_FIXED_CONSTRAINT );
+    //    if ( getPhaseStatus() != PHASE_NOT_FIXED )
+    //        throw MarabouError( MarabouError::REQUESTED_CASE_SPLITS_FROM_FIXED_CONSTRAINT );
 
     List<PiecewiseLinearCaseSplit> splits;
 

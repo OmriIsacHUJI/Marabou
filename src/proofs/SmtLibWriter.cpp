@@ -68,7 +68,7 @@ SmtLibWriter::convertToSmtLib( unsigned numOfTableauRows,
             b = conVars[0];
             f = conVars[1];
             aux = conVars[2];
-            SmtLibWriter::addReLUConstraint( b, f, aux,constraint->getPhaseStatus(), instance );
+            SmtLibWriter::addReLUConstraint( b, f, aux, constraint->getPhaseStatus(), instance );
         }
         else if ( constraint->getType() == SIGN )
         {
@@ -162,13 +162,20 @@ void SmtLibWriter::addReLUConstraint( unsigned b,
                                       List<String> &instance )
 {
     // TODO fix for the case of leaf writing?
-//    if ( status == PHASE_NOT_FIXED )
-        instance.append( "( assert ( or ( and ( >= x" + std::to_string( b ) + " 0.0 ) ( <= x" + std::to_string( aux ) + " 0.0 ) )" + " ( and ( <= x" + std::to_string( b ) + " 0.0 ) ( <= x" + std::to_string( f ) + " 0.0 ) ) ) )\n" );
-//    else if ( status == RELU_PHASE_ACTIVE )
-//        instance.append( "( assert ( = x" + std::to_string( f ) + " x" + std::to_string( b ) +
-//                         " ) )\n" );
-//    else if ( status == RELU_PHASE_INACTIVE )
-//        instance.append( "( assert ( = x" + std::to_string( f ) + " 0 ) )\n" );
+    //    if ( status == PHASE_NOT_FIXED )
+    instance.append( "( assert ( or ( and ( >= x" + std::to_string( b ) + " 0.0 ) ( <= x" +
+                     std::to_string( aux ) + " 0.0 ) )" + " ( and ( <= x" + std::to_string( b ) +
+                     " 0.0 ) ( <= x" + std::to_string( f ) + " 0.0 ) ) ) )\n" );
+    instance.append("(assert ( = (>= x" + std::to_string( b ) + " 0.0 ) ( <= x" +
+                     std::to_string( aux ) + " 0.0 ) ) )\n" );
+    instance.append("(assert ( = (<= x" + std::to_string( b ) + " 0.0 ) ( <= x" +
+                     std::to_string( f ) + " 0.0 ) ) )\n" );
+
+    //    else if ( status == RELU_PHASE_ACTIVE )
+    //        instance.append( "( assert ( = x" + std::to_string( f ) + " x" + std::to_string( b ) +
+    //                         " ) )\n" );
+    //    else if ( status == RELU_PHASE_INACTIVE )
+    //        instance.append( "( assert ( = x" + std::to_string( f ) + " 0 ) )\n" );
 }
 
 void SmtLibWriter::addSignConstraint( unsigned b,
