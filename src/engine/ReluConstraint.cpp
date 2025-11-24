@@ -207,15 +207,14 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
             }
 
             // A negative lower bound for b could tighten aux's upper bound
-            else if ( _auxVarInUse && variable == _b && bound < 0 )
+            else if ( _auxVarInUse && variable == _b && FloatUtils::isNegative( bound ) )
             {
                 if ( proofs )
                 {
                     // If already inactive, tightening is linear
                     if ( getPhaseStatus() == RELU_PHASE_INACTIVE )
                         _boundManager->tightenUpperBound( _aux, -bound, *_tighteningRow );
-                    else if ( getPhaseStatus() == PHASE_NOT_FIXED &&
-                              !GlobalConfiguration::WRITE_ALETHE_PROOF )
+                    else if ( getPhaseStatus() == PHASE_NOT_FIXED )
                         _boundManager->addLemmaExplanationAndTightenBound( _aux,
                                                                            -bound,
                                                                            Tightening::UB,
@@ -327,8 +326,7 @@ void ReluConstraint::notifyUpperBound( unsigned variable, double newBound )
                         // If already inactive, tightening is linear
                         if ( getPhaseStatus() == RELU_PHASE_ACTIVE )
                             _boundManager->tightenUpperBound( _f, bound, *_tighteningRow );
-                        else if ( getPhaseStatus() == PHASE_NOT_FIXED &&
-                                  !GlobalConfiguration::WRITE_ALETHE_PROOF )
+                        else if ( getPhaseStatus() == PHASE_NOT_FIXED )
                             _boundManager->addLemmaExplanationAndTightenBound( _f,
                                                                                bound,
                                                                                Tightening::UB,

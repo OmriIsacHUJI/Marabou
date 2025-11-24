@@ -429,18 +429,6 @@ void AletheProofbWriter::applyReluLemma( const UnsatCertificateNode *node,
 
     ASSERT( explanations.size() == 1 );
 
-    //    String tempString = getBoundAsClause( Tightening( causingVar, bound, causingVarBound ) ) +
-    //                        " ( not " +
-    //                        getBoundAsClause( Tightening( causingVar, bound, causingVarBound ) ) +
-    //                        ")";
-    //
-    //    String taut = String( "(step taut" + std::to_string( _lemmaCounter ) + "( cl ( or " ) +
-    //                  tempString + ") ) :rule la_tautology)\n";
-    //    String tautSplit = String( "( step split" ) + std::to_string( _lemmaCounter ) + " (cl " +
-    //                       tempString + ") :rule or :premises ( taut" +
-    //                       std::to_string( _lemmaCounter ) + " ) )\n";
-
-
     String farkasArgs = "";
     String farkasClause = "";
     String farkasParticipants = "";
@@ -584,28 +572,86 @@ void AletheProofbWriter::applyReluLemma( const UnsatCertificateNode *node,
                        ") :rule resolution :premises ( resLem" +
                        std::to_string( _lemmaCounter - 1 ) + " equiv" + identifier + "_a1) ) \n";
     }
-
-    /* TODO support all lemma types
     // If lb of b is negative x, then ub of aux is -x
     else if ( causingVar == b && causingVarBound == Tightening::LB && affectedVar == aux &&
-              affectedVarBound == Tightening::UB &&
-              FloatUtils::isNegative( explainedBound - epsilon ) )
-        return -explainedBound;
+              affectedVarBound == Tightening::UB && FloatUtils::isNegative( targetBound ) )
+    {
+        matched = true;
 
+        unsigned identifierInt = plc->getTableauAuxVars().front();
+        String tautClause = String( " ( not " ) +
+                            getBoundAsClause( Tightening( affectedVar, 0, Tightening::UB ) ) +
+                            ") " + conclusion;
+
+        proofRule = String( "( step taut" + std::to_string( _lemmaCounter ) + "( cl ( or " ) +
+                    tautClause + ") ) :rule la_tautology)\n";
+
+        proofRule += String( "( step tautSplit" ) + std::to_string( _lemmaCounter ) + " (cl " +
+                     tautClause + ") :rule or :premises ( taut" + std::to_string( _lemmaCounter ) +
+                     " ) )\n";
+
+        String counterpartBound =
+            getBoundAsClause( Tightening( identifierInt, 0, Tightening::LB ) );
+        String subConclusion = getBoundAsClause( Tightening( f, 0, Tightening::UB ) );
+        String tableauClause = convertTableauAssumptionToClause( identifierInt - ( _n - _m ) );
+        String subFarkasClause = String( "(cl ( not " ) + causeBound + ") " + conclusion +
+                                 "( not " + subConclusion + ") ( not " + counterpartBound + ")" +
+                                 tableauClause;
+
+        proofRule += String( "( step farkasLem" + std::to_string( _lemmaCounter ) ) + " " +
+                     subFarkasClause + ") :rule la_generic :args (1 1 -1 1 -1) )\n";
+
+        proofRuleRes +=
+            String( "( step resLem" + std::to_string( _lemmaCounter ) ) + " ( cl " +
+            getPathClause( node ) + conclusion + ") :rule resolution :premises ( resLem" +
+            std::to_string( _lemmaCounter - 1 ) + " e" +
+            std::to_string( identifierInt - ( _n - _m ) ) + " l" + identifier + ".0 farkasLem" +
+            std::to_string( _lemmaCounter ) + " tautSplit" + std::to_string( _lemmaCounter ) +
+            " split" + identifier + "_a1 split" + identifier + " split" + identifier + "_i1 ) ) \n";
+    }
     // If ub of b is positive, then propagate to f
     else if ( causingVar == b && causingVarBound == Tightening::UB && affectedVar == f &&
-              affectedVarBound == Tightening::UB &&
-              FloatUtils::isPositive( explainedBound + epsilon ) )
-        return explainedBound;
+              affectedVarBound == Tightening::UB && FloatUtils::isPositive( targetBound ) )
+    {
+        matched = true;
 
-    */
+        unsigned identifierInt = plc->getTableauAuxVars().front();
+        String tautClause = String( " ( not " ) +
+                            getBoundAsClause( Tightening( affectedVar, 0, Tightening::UB ) ) +
+                            ") " + conclusion;
+
+        proofRule = String( "( step taut" + std::to_string( _lemmaCounter ) + "( cl ( or " ) +
+                    tautClause + ") ) :rule la_tautology)\n";
+
+        proofRule += String( "( step tautSplit" ) + std::to_string( _lemmaCounter ) + " (cl " +
+                     tautClause + ") :rule or :premises ( taut" + std::to_string( _lemmaCounter ) +
+                     " ) )\n";
+
+        String counterpartBound =
+            getBoundAsClause( Tightening( identifierInt, 0, Tightening::UB ) );
+        String subConclusion = getBoundAsClause( Tightening( aux, 0, Tightening::UB ) );
+        String tableauClause = convertTableauAssumptionToClause( identifierInt - ( _n - _m ) );
+        String subFarkasClause = String( "(cl ( not " ) + causeBound + ") " + conclusion +
+                                 "( not " + subConclusion + ") ( not " + counterpartBound + ")" +
+                                 tableauClause;
+
+        proofRule += String( "( step farkasLem" + std::to_string( _lemmaCounter ) ) + " " +
+                     subFarkasClause + ") :rule la_generic :args (1 1 -1 1 1) )\n";
+
+        proofRuleRes +=
+            String( "( step resLem" + std::to_string( _lemmaCounter ) ) + " ( cl " +
+            getPathClause( node ) + conclusion + ") :rule resolution :premises ( resLem" +
+            std::to_string( _lemmaCounter - 1 ) + " e" +
+            std::to_string( identifierInt - ( _n - _m ) ) + " u" + identifier + ".0 farkasLem" +
+            std::to_string( _lemmaCounter ) + " tautSplit" + std::to_string( _lemmaCounter ) +
+            " split" + identifier + "_a1 split" + identifier + " split" + identifier + "_i1 ) ) \n";
+    }
 
     Vector<Stack<std::tuple<int, double>>> &affectedTempVec =
         ( affectedVarBound == Tightening::UB ) ? _currentUpperBounds : _currentLowerBounds;
     if ( matched )
     {
         affectedTempVec[affectedVar].push( std::tuple<int, double>( _lemmaCounter, bound ) );
-
 
         _proof.append( laGeneric );
         _proof.append( res );
