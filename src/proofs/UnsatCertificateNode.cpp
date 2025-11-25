@@ -18,11 +18,13 @@
 
 UnsatCertificateNode::UnsatCertificateNode( UnsatCertificateNode *parent,
                                             PiecewiseLinearCaseSplit split,
-                                            unsigned splitNum )
+                                            unsigned splitNum,
+                                            unsigned id )
     : _parent( parent )
     , _contradiction( NULL )
     , _headSplit( std::move( split ) )
     , _splitNum( splitNum )
+    , _id( id )
     , _hasSATSolution( false )
     , _wasVisited( false )
     , _delegationStatus( DelegationStatus::DONT_DELEGATE )
@@ -172,4 +174,9 @@ void UnsatCertificateNode::deleteUnusedLemmas()
 unsigned UnsatCertificateNode::getSplitNum() const
 {
     return _splitNum;
+}
+
+unsigned UnsatCertificateNode::getId() const
+{
+    return _id;
 }

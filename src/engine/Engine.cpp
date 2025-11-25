@@ -16,7 +16,6 @@
 
 #include "Engine.h"
 
-#include "AletheProofWriter.h"
 #include "AutoConstraintMatrixAnalyzer.h"
 #include "Debug.h"
 #include "DisjunctionConstraint.h"
@@ -73,6 +72,7 @@ Engine::Engine()
     , _produceUNSATProofs( Options::get()->getBool( Options::PRODUCE_PROOFS ) )
     , _groundBoundManager( _context )
     , _UNSATCertificate( NULL )
+    , _aletheWriter( NULL )
 {
     _searchTreeHandler.setStatistics( &_statistics );
     _tableau->setStatistics( &_statistics );
@@ -111,6 +111,12 @@ Engine::~Engine()
 
     if ( _produceUNSATProofs && _UNSATCertificateCurrentPointer )
         _UNSATCertificateCurrentPointer->deleteSelf();
+
+    if ( GlobalConfiguration::WRITE_ALETHE_PROOF && _aletheWriter )
+    {
+        delete _aletheWriter;
+        _aletheWriter = NULL;
+    }
 }
 
 void Engine::setVerbosity( unsigned verbosity )
@@ -1481,11 +1487,7 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
 
             if ( _produceUNSATProofs )
             {
-                _UNSATCertificate = new UnsatCertificateNode( NULL, PiecewiseLinearCaseSplit(), 0 );
-                _UNSATCertificateCurrentPointer->set( _UNSATCertificate );
-                _UNSATCertificate->setVisited();
                 _groundBoundManager.initialize( n );
-
                 for ( unsigned i = 0; i < n; ++i )
                 {
                     _groundBoundManager.addGroundBound(
@@ -1494,6 +1496,18 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
                         i, _preprocessedQuery->getLowerBound( i ), Tightening::LB, false );
                 }
             }
+
+            if ( _produceUNSATProofs && GlobalConfiguration::WRITE_ALETHE_PROOF )
+                _aletheWriter =
+                    new AletheProofWriter( _tableau->getM(),
+                                           _groundBoundManager.getAllGroundBounds( Tightening::UB ),
+                                           _groundBoundManager.getAllGroundBounds( Tightening::LB ),
+                                           _tableau->getSparseA(),
+                                           _plConstraints,
+                                           _UNSATCertificate );
+            _UNSATCertificate = new UnsatCertificateNode( NULL, PiecewiseLinearCaseSplit(), 0, 0 );
+            _UNSATCertificateCurrentPointer->set( _UNSATCertificate );
+            _UNSATCertificate->setVisited();
         }
         else
         {
@@ -3707,6 +3721,9 @@ bool Engine::certifyUNSATCertificate()
         }
     }
     _UNSATCertificateCurrentPointer->get()->deleteUnusedLemmas();
+    if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+        _aletheWriter->writeAletheProof( _UNSATCertificateCurrentPointer->get() );
+
     struct timespec certificationStart = TimeUtils::sampleMicro();
     _precisionRestorer.restoreInitialEngineState( *this );
 
@@ -3715,13 +3732,15 @@ bool Engine::certifyUNSATCertificate()
 
     for ( unsigned i = 0; i < _tableau->getN(); ++i )
     {
-        groundUpperBounds[i] = _groundBoundManager.getGroundBound( i, Tightening::UB );
-        groundLowerBounds[i] = _groundBoundManager.getGroundBound( i, Tightening::LB );
+        groundUpperBounds[i] = _preprocessedQuery->getUpperBound( i );
+        groundLowerBounds[i] = _preprocessedQuery->getLowerBound( i );
     }
 
     if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
     {
-        String pref = Options::get()->getString( Options::INPUT_FILE_PATH ).tokenize( "/" ).back();
+        String pref =
+            Options::get()->getString( Options::INPUT_FILE_PATH ).tokenize( "/" ).back() +
+            Options::get()->getString( Options::PROPERTY_FILE_PATH ).tokenize( "/" ).back();
         File file( pref + ".smt2.alethe" );
         SmtLibWriter::writeToSmtLibFile( pref + ".smt2",
                                          _tableau->getM(),
@@ -3732,13 +3751,8 @@ bool Engine::certifyUNSATCertificate()
                                          List<Equation>(),
                                          _plConstraints );
 
-        AletheProofbWriter writer = AletheProofbWriter( _tableau->getM(),
-                                                        groundUpperBounds,
-                                                        groundLowerBounds,
-                                                        _tableau->getSparseA(),
-                                                        _plConstraints,
-                                                        _UNSATCertificate );
-        writer.writeAletheProof( file );
+
+        _aletheWriter->writeInstanceToFile( file );
     }
 
     Checker unsatCertificateChecker( _UNSATCertificate,
@@ -4068,4 +4082,14 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
     }
 
     return entries;
+}
+
+AletheProofWriter *Engine::getAletheWriter() const
+{
+    return _aletheWriter;
+}
+
+unsigned Engine::getNumOfLemmas() const
+{
+    return _statistics.getUnsignedAttribute( Statistics::NUM_LEMMAS );
 }

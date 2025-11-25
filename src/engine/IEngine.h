@@ -31,6 +31,7 @@
 #undef ERROR
 #endif
 
+class AletheProofWriter;
 class EngineState;
 class Equation;
 class PiecewiseLinearCaseSplit;
@@ -197,6 +198,10 @@ public:
     setGroundBoundFromLemma( const std::shared_ptr<PLCLemma> lemma, bool isPhaseFixing ) = 0;
 
     virtual const List<PiecewiseLinearConstraint *> *getPiecewiseLinearConstraints() const = 0;
+
+    virtual AletheProofWriter *getAletheWriter() const = 0;
+    virtual unsigned getNumOfLemmas() const = 0;
+
 };
 
 #endif // __IEngine_h__

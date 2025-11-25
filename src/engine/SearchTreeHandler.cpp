@@ -15,6 +15,7 @@
 
 #include "SearchTreeHandler.h"
 
+#include "AletheProofWriter.h"
 #include "Debug.h"
 #include "EngineState.h"
 #include "FloatUtils.h"
@@ -177,7 +178,16 @@ void SearchTreeHandler::performSplit()
         // Create children for UNSATCertificate current node, and assign a split to each of them
         ASSERT( certificateNode );
         for ( PiecewiseLinearCaseSplit &childSplit : splits )
-            new UnsatCertificateNode( certificateNode, childSplit, _constraintForSplitting->getTableauAuxVars().front() );
+        {
+            unsigned id = GlobalConfiguration::WRITE_ALETHE_PROOF
+                            ? _engine->getAletheWriter()->assignId()
+                            : 0;
+
+            new UnsatCertificateNode( certificateNode,
+                                      childSplit,
+                                      _constraintForSplitting->getTableauAuxVars().front(),
+                                      id );
+        }
     }
 
     SearchTreeStackEntry *stackEntry = new SearchTreeStackEntry;
@@ -299,6 +309,8 @@ bool SearchTreeHandler::popSplit()
                 UnsatCertificateNode *certificateNode =
                     _engine->getUNSATCertificateCurrentPointer();
                 certificateNode->deleteUnusedLemmas();
+                if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+                    _engine->getAletheWriter()->writeAletheProof( certificateNode, false );
                 _engine->setUNSATCertificateCurrentPointer( certificateNode->getParent() );
             }
 
@@ -314,9 +326,13 @@ bool SearchTreeHandler::popSplit()
         }
 
         SearchTreeStackEntry *stackEntry = _stack.back();
-
-        if ( _engine->shouldProduceProofs() && _engine->getUNSATCertificateCurrentPointer() )
-            _engine->getUNSATCertificateCurrentPointer()->deleteUnusedLemmas();
+        UnsatCertificateNode *certificateNode = _engine->getUNSATCertificateCurrentPointer();
+        if ( _engine->shouldProduceProofs() && certificateNode )
+        {
+            certificateNode->deleteUnusedLemmas();
+            if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+                _engine->getAletheWriter()->writeAletheProof( certificateNode, false );
+        }
 
         popContext();
         _engine->postContextPopHook();
@@ -342,6 +358,9 @@ bool SearchTreeHandler::popSplit()
             while ( !splitChild )
             {
                 certificateNode->deleteUnusedLemmas();
+                if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+                    _engine->getAletheWriter()->writeAletheProof( certificateNode, false );
+
                 certificateNode = certificateNode->getParent();
                 ASSERT( certificateNode );
                 splitChild = certificateNode->getChildBySplit( *split );

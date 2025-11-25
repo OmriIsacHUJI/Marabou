@@ -10,6 +10,10 @@
 **
 ** [[ Add lengthier description here ]]
 **/
+
+#ifndef __AletheProofWriter_h__
+#define __AletheProofWriter_h__
+
 #include "PiecewiseLinearCaseSplit.h"
 #include "SmtLibWriter.h"
 #include "SparseMatrix.h"
@@ -21,20 +25,24 @@
 #include "gmp.h"
 #include "gmpxx.h"
 
-#ifndef __AletheProofWriter_h__
-#define __AletheProofWriter_h__
-class AletheProofbWriter
+class AletheProofWriter
 {
 public:
-    AletheProofbWriter( unsigned explanationSize,
-                        const Vector<double> &upperBounds,
-                        const Vector<double> &lowerBounds,
-                        const SparseMatrix *tableau,
-                        const List<PiecewiseLinearConstraint *> &problemConstraints,
-                        UnsatCertificateNode *root );
+    AletheProofWriter( unsigned explanationSize,
+                       const Vector<double> &upperBounds,
+                       const Vector<double> &lowerBounds,
+                       const SparseMatrix *tableau,
+                       const List<PiecewiseLinearConstraint *> &problemConstraints,
+                       UnsatCertificateNode *root );
 
 
     void writeAletheProof( IFile &file );
+
+    void writeInstanceToFile( IFile &file );
+
+    void writeAletheProof( const UnsatCertificateNode *node, bool toRecurse = false );
+
+    unsigned assignId();
 
 
 private:
@@ -45,28 +53,25 @@ private:
     List<PiecewiseLinearConstraint *> _plc;
     UnsatCertificateNode *_root;
     List<String> _proof;
+    List<String> _assumptions;
+
     unsigned _n;
     unsigned _m;
     unsigned _stepCounter;
-    unsigned _lemmaCounter;
 
-    unsigned writeAletheProof( const UnsatCertificateNode *node );
-
-    void writeAssumptions();
+    void writeBoundAssumptions();
 
     void writePLCAssumption();
 
-    unsigned applyContradiction( const UnsatCertificateNode *node );
+    void writeTableauAssumptions();
 
-    void concludeChildrenUnsat( const UnsatCertificateNode *node,
-                                unsigned index,
-                                List<unsigned> childrenIndices );
+    void applyContradiction( const UnsatCertificateNode *node );
 
-    void writeInstanceToFile( IFile &file, const List<String> &instance );
+    void concludeChildrenUnsat( const UnsatCertificateNode *node, List<unsigned> childrenIndices );
 
     void applyAllLemmas( const UnsatCertificateNode *node );
 
-    void
+    List<String>
     applyReluLemma( const UnsatCertificateNode *node, const PLCLemma &lemma, ReluConstraint *plc );
 
     void insertCurrentBoundsToVec( bool isUpper, Vector<double> &boundsVec );
@@ -95,7 +100,7 @@ private:
                         int explainerVar,
                         bool isUpper );
 
-    void writeDelegatedLeaf( const UnsatCertificateNode *node);
+    void writeDelegatedLeaf( const UnsatCertificateNode *node );
 };
 
 #endif // __AletheProofWriter_h__

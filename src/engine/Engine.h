@@ -16,6 +16,7 @@
 #ifndef __Engine_h__
 #define __Engine_h__
 
+#include "AletheProofWriter.h"
 #include "AutoCostFunctionManager.h"
 #include "AutoProjectedSteepestEdge.h"
 #include "AutoRowBoundTightener.h"
@@ -312,6 +313,10 @@ public:
      For debugging purpose
     */
     const List<PiecewiseLinearConstraint *> *getPiecewiseLinearConstraints() const override;
+
+    AletheProofWriter *getAletheWriter() const override;
+    unsigned getNumOfLemmas() const override;
+
 
 private:
     enum BasisRestorationRequired {
@@ -849,6 +854,7 @@ private:
     GroundBoundManager _groundBoundManager;
     UnsatCertificateNode *_UNSATCertificate;
     CVC4::context::CDO<UnsatCertificateNode *> *_UNSATCertificateCurrentPointer;
+    AletheProofWriter *_aletheWriter;
 
     /*
       Returns true iff there is a variable with bounds that can explain infeasibility of the tableau

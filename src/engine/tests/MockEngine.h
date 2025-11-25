@@ -298,6 +298,16 @@ public:
     }
 
     void incNumOfLemmas() override{};
+
+    AletheProofWriter *getAletheWriter() const override
+    {
+        return NULL;
+    }
+
+    unsigned getNumOfLemmas() const
+    {
+        return 0;
+    }
 };
 
 #endif // __MockEngine_h__
