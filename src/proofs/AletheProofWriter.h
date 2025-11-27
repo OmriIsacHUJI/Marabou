@@ -59,6 +59,8 @@ private:
     unsigned _m;
     unsigned _stepCounter;
 
+    Map<unsigned, PiecewiseLinearConstraint *> _varToPLC;
+
     void writeBoundAssumptions();
 
     void writePLCAssumption();
@@ -76,22 +78,24 @@ private:
 
     void insertCurrentBoundsToVec( bool isUpper, Vector<double> &boundsVec );
 
-    String getPathClause( const UnsatCertificateNode *node );
+    String getNegatedSplitsClause( const List<PiecewiseLinearCaseSplit> &splits ) const;
 
-    String getPathResSteps( const UnsatCertificateNode *node );
+    String getSplitsResSteps( const List<PiecewiseLinearCaseSplit> &splits )const;
 
-    String getSplitsAsClause( const List<PiecewiseLinearCaseSplit> &splits );
+    List<PiecewiseLinearCaseSplit> getPathSplits( const UnsatCertificateNode *node )const;
 
-    String getSplitAsClause( const PiecewiseLinearCaseSplit &splits );
+    String getSplitsAsClause( const List<PiecewiseLinearCaseSplit> &splits )const;
 
-    String getBoundAsClause( const Tightening &bound );
+    String getSplitAsClause( const PiecewiseLinearCaseSplit &split ) const;
 
-    String convertTableauAssumptionToClause( unsigned index );
+    String getBoundAsClause( const Tightening &bound ) const;
 
-    bool isSplitActive( const PiecewiseLinearCaseSplit &split );
+    String convertTableauAssumptionToClause( unsigned index ) const;
+
+    bool isSplitActive( const PiecewiseLinearCaseSplit &split )const ;
 
     void linearCombinationMpq( const std::vector<mpq_t> &explainedRow,
-                               const SparseUnsortedList &expl );
+                               const SparseUnsortedList &expl )const ;
 
     void farkasStrings( const SparseUnsortedList &expl,
                         String &farkasArgs,

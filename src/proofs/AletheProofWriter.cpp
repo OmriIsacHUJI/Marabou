@@ -26,6 +26,7 @@ AletheProofWriter::AletheProofWriter( unsigned explanationSize,
     , _n( upperBounds.size() )
     , _m( explanationSize )
     , _stepCounter( 1 )
+    , _varToPLC()
 {
     for ( unsigned i = 0; i < _n; ++i )
     {
@@ -35,6 +36,10 @@ AletheProofWriter::AletheProofWriter( unsigned explanationSize,
         _currentLowerBounds[i].push( std::tuple<int, double>( 0, lowerBounds[i] ) );
         _currentUpperBounds[i].push( std::tuple<int, double>( 0, upperBounds[i] ) );
     }
+
+    for ( const auto &plc : problemConstraints )
+        for ( const auto var : plc->getParticipatingVariables() )
+            _varToPLC.insert( var, plc );
 
     // Write only necessary lines upon initialization
     writeTableauAssumptions();
@@ -295,9 +300,9 @@ void AletheProofWriter::applyContradiction( const UnsatCertificateNode *node )
                        " :rule la_generic :args " + farkasArgs;
 
     String res = String( "( step res" + std::to_string( node->getId() ) ) + " (cl " +
-                 getPathClause( node ) + ") :rule resolution :premises (" +
-                 getPathResSteps( node ) + " t" + std::to_string( node->getId() ) + " " +
-                 farkasParticipants + " ) ) \n";
+                 getNegatedSplitsClause( getPathSplits( node ) ) + ") :rule resolution :premises (" +
+                 getSplitsResSteps( getPathSplits( node ) ) + " t" +
+                 std::to_string( node->getId() ) + " " + farkasParticipants + " ) ) \n";
 
 
     _proof.append( { laGeneric, res } );
@@ -334,7 +339,8 @@ void AletheProofWriter::concludeChildrenUnsat( const UnsatCertificateNode *node,
     ASSERT( childrenIndices.size() == 2 )
     PiecewiseLinearCaseSplit firstChildSplit = node->getChildren().front()->getSplit();
     String resLine = String( "( step res" + std::to_string( node->getId() ) + " (cl " ) +
-                     getPathClause( node ) + ") :rule resolution :premises ( split" +
+                     getNegatedSplitsClause( getPathSplits( node ) ) +
+                     ") :rule resolution :premises ( split" +
                      std::to_string( node->getChildren().front()->getSplitNum() ) + " res" +
                      std::to_string( childrenIndices.front() ) + " res" +
                      std::to_string( childrenIndices.back() ) + ") )\n";
@@ -342,26 +348,24 @@ void AletheProofWriter::concludeChildrenUnsat( const UnsatCertificateNode *node,
     _proof.append( resLine );
 }
 
-String AletheProofWriter::getPathClause( const UnsatCertificateNode *node )
+String
+AletheProofWriter::getNegatedSplitsClause( const List<PiecewiseLinearCaseSplit> &splits ) const
 {
-    if ( !node->getParent() )
+    if ( splits.empty() )
         return "";
 
     String clause = "";
-    const UnsatCertificateNode *cur = node;
-    while ( !cur->getSplit().getBoundTightenings().empty() )
+    for ( const auto &split : splits )
     {
         clause += "( not ( and ";
-        const PiecewiseLinearCaseSplit &headSplit = cur->getSplit();
-        for ( const auto bound : headSplit.getBoundTightenings() )
+        for ( const auto bound : split.getBoundTightenings() )
             clause += getBoundAsClause( bound );
-        cur = cur->getParent();
         clause += " ) )";
     }
     return clause;
 }
 
-String AletheProofWriter::getBoundAsClause( const Tightening &bound )
+String AletheProofWriter::getBoundAsClause( const Tightening &bound ) const
 {
     if ( bound._type == Tightening::UB )
         return String( "( <= x" + std::to_string( bound._variable ) + " " ) +
@@ -372,7 +376,7 @@ String AletheProofWriter::getBoundAsClause( const Tightening &bound )
 }
 
 
-String AletheProofWriter::getSplitAsClause( const PiecewiseLinearCaseSplit &split )
+String AletheProofWriter::getSplitAsClause( const PiecewiseLinearCaseSplit &split ) const
 {
     ASSERT( split.getEquations().empty() );
     String clause = "( and ";
@@ -383,7 +387,7 @@ String AletheProofWriter::getSplitAsClause( const PiecewiseLinearCaseSplit &spli
     return clause;
 }
 
-String AletheProofWriter::getSplitsAsClause( const List<PiecewiseLinearCaseSplit> &splits )
+String AletheProofWriter::getSplitsAsClause( const List<PiecewiseLinearCaseSplit> &splits ) const
 {
     String clause = "";
     for ( const auto &split : splits )
@@ -391,30 +395,43 @@ String AletheProofWriter::getSplitsAsClause( const List<PiecewiseLinearCaseSplit
     return clause;
 }
 
-bool AletheProofWriter::isSplitActive( const PiecewiseLinearCaseSplit &split )
+bool AletheProofWriter::isSplitActive( const PiecewiseLinearCaseSplit &split ) const
 {
     ASSERT( split.getEquations().empty() )
     return split.getBoundTightenings().back()._type == Tightening::LB ||
            split.getBoundTightenings().front()._type == Tightening::LB;
 }
 
-String AletheProofWriter::getPathResSteps( const UnsatCertificateNode *node )
+List<PiecewiseLinearCaseSplit>
+AletheProofWriter::getPathSplits( const UnsatCertificateNode *node ) const
 {
-    if ( !node->getParent() )
+    List<PiecewiseLinearCaseSplit> pathSplits = List<PiecewiseLinearCaseSplit>();
+    const UnsatCertificateNode *cur = node;
+    while ( cur && !cur->getSplit().getBoundTightenings().empty() )
+    {
+        pathSplits.append( cur->getSplit() );
+        cur = cur->getParent();
+    }
+
+    return pathSplits;
+}
+
+String AletheProofWriter::getSplitsResSteps( const List<PiecewiseLinearCaseSplit> &splits ) const
+{
+    if ( splits.empty() )
         return "";
 
     String resSteps = " ";
-    const UnsatCertificateNode *cur = node;
-    while ( !cur->getSplit().getBoundTightenings().empty() )
+    for ( const auto &split : splits )
     {
-        String currentStep = " split" + std::to_string( cur->getSplitNum() );
-        const PiecewiseLinearCaseSplit &headSplit = cur->getSplit();
-        String isActive = isSplitActive( headSplit ) ? "a" : "i";
+        unsigned splitNum =
+            _varToPLC[split.getBoundTightenings().front()._variable]->getTableauAuxVars().front();
+        String currentStep = " split" + std::to_string( splitNum );
+        String isActive = isSplitActive( split ) ? "a" : "i";
 
-        for ( unsigned i = 0; i < headSplit.getBoundTightenings().size(); ++i )
-            currentStep += String( " split" + std::to_string( cur->getSplitNum() ) + "_" ) +
-                           isActive + std::to_string( i );
-        cur = cur->getParent();
+        for ( unsigned i = 0; i < split.getBoundTightenings().size(); ++i )
+            currentStep += String( " split" + std::to_string( splitNum ) + "_" ) + isActive +
+                           std::to_string( i );
         // Add steps to the left
         resSteps = currentStep + resSteps;
     }
@@ -489,11 +506,10 @@ List<String> AletheProofWriter::applyReluLemma( const UnsatCertificateNode *node
     String laGeneric = String( "( step farkasLem" ) + id + " " + farkasClause +
                        " :rule la_generic :args " + farkasArgs;
 
-    String res = String( "( step causResLem" ) + id + " (cl " + getPathClause( node ) + causeBound +
-                 ") :rule resolution :premises (" + getPathResSteps( node ) + " farkasLem" + id +
-                 " " + farkasParticipants + " ) ) \n";
-
-    // TODO consider writing the causing var ground bound
+    String res = String( "( step causResLem" ) + id + " (cl " +
+                 getNegatedSplitsClause( getPathSplits( node ) ) + causeBound +
+                 ") :rule resolution :premises (" + getSplitsResSteps( getPathSplits( node ) ) +
+                 " farkasLem" + id + " " + farkasParticipants + " ) ) \n";
 
     unsigned b = plc->getB();
     unsigned f = plc->getF();
@@ -527,18 +543,20 @@ List<String> AletheProofWriter::applyReluLemma( const UnsatCertificateNode *node
     {
         matched = true;
         String splitrule = causingVar == f ? "_i1" : "_i0";
-        proofRuleRes = String( "( step resLem" ) + id + " ( cl " + getPathClause( node ) +
-                       conclusion + ") :rule resolution :premises ( causResLem" + id +
-                       " tautSplit" + id + " split" + identifier + splitrule + " split" +
-                       identifier + " split" + identifier + "_a1 ) ) \n";
+        proofRuleRes = String( "( step resLem" ) + id + " ( cl " +
+                       getNegatedSplitsClause( getPathSplits( node ) ) + conclusion +
+                       ") :rule resolution :premises ( causResLem" + id + " tautSplit" + id +
+                       " split" + identifier + splitrule + " split" + identifier + " split" +
+                       identifier + "_a1 ) ) \n";
     }
     else if ( causingVar == b && causingVarBound == Tightening::LB && affectedVar == aux &&
               affectedVarBound == Tightening::UB && targetBound == 0 )
     {
         matched = true;
-        proofRuleRes = String( "( step resLem" ) + id + " ( cl " + getPathClause( node ) +
-                       conclusion + ") :rule resolution :premises ( causResLem" + id + " equiv" +
-                       identifier + "_a0) ) \n";
+        proofRuleRes = String( "( step resLem" ) + id + " ( cl " +
+                       getNegatedSplitsClause( getPathSplits( node ) ) + conclusion +
+                       ") :rule resolution :premises ( causResLem" + id + " equiv" + identifier +
+                       "_a0) ) \n";
     }
     // If lb of aux is positive, then ub of f is 0
     else if ( causingVar == aux && causingVarBound == Tightening::LB && affectedVar == f &&
@@ -546,10 +564,10 @@ List<String> AletheProofWriter::applyReluLemma( const UnsatCertificateNode *node
     {
         matched = true;
 
-        proofRuleRes = String( "( step resLem" ) + id + " ( cl " + getPathClause( node ) +
-                       conclusion + ") :rule resolution :premises ( causResLem" + id +
-                       " tautSplit" + id + " split" + identifier + "_a1 split" + identifier +
-                       " split" + identifier + "_i1 ) ) \n";
+        proofRuleRes =
+            String( "( step resLem" ) + id + " ( cl " + getNegatedSplitsClause( getPathSplits( node ) ) +
+            conclusion + ") :rule resolution :premises ( causResLem" + id + " tautSplit" + id +
+            " split" + identifier + "_a1 split" + identifier + " split" + identifier + "_i1 ) ) \n";
     }
 
     // If ub of b is non positive, then ub of f is 0
@@ -558,27 +576,29 @@ List<String> AletheProofWriter::applyReluLemma( const UnsatCertificateNode *node
     {
         matched = true;
 
-        proofRuleRes = String( "( step resLem" ) + id + " ( cl " + getPathClause( node ) +
-                       conclusion + ") :rule resolution :premises ( causResLem" + id +
-                       " tautSplit" + id + " split" + identifier + "_a0 split" + identifier +
-                       " split" + identifier + "_i1 ) ) \n";
+        proofRuleRes =
+            String( "( step resLem" ) + id + " ( cl " + getNegatedSplitsClause( getPathSplits( node ) ) +
+            conclusion + ") :rule resolution :premises ( causResLem" + id + " tautSplit" + id +
+            " split" + identifier + "_a0 split" + identifier + " split" + identifier + "_i1 ) ) \n";
     }
     // Propagate 0 ub from f to b
     else if ( causingVar == f && causingVarBound == Tightening::UB && affectedVar == b &&
               affectedVarBound == Tightening::UB && targetBound == 0 )
     {
         matched = true;
-        getPathClause( node ) + conclusion + proofRuleRes =
-            String( "( step resLem" ) + id + " ( cl " +
-            ") :rule resolution :premises ( causResLem" + id + " equiv" + identifier + "_i1) ) \n";
+        proofRuleRes = String( "( step resLem" ) + id + " ( cl " +
+                       getNegatedSplitsClause( getPathSplits( node ) ) + conclusion +
+                       ") :rule resolution :premises ( causResLem" + id + " equiv" + identifier +
+                       "_i1) ) \n";
     }
     else if ( causingVar == b && causingVarBound == Tightening::UB && affectedVar == f &&
               affectedVarBound == Tightening::UB && targetBound == 0 )
     {
         matched = true;
-        proofRuleRes = String( "( step resLem" ) + id + " ( cl " + getPathClause( node ) +
-                       conclusion + ") :rule resolution :premises ( causResLem" + id + " equiv" +
-                       identifier + "_i0) ) \n";
+        proofRuleRes = String( "( step resLem" ) + id + " ( cl " +
+                       getNegatedSplitsClause( getPathSplits( node ) ) + conclusion +
+                       ") :rule resolution :premises ( causResLem" + id + " equiv" + identifier +
+                       "_i0) ) \n";
     }
     // If ub of aux is 0, then lb of b is 0
     else if ( causingVar == aux && causingVarBound == Tightening::UB && affectedVar == b &&
@@ -586,9 +606,10 @@ List<String> AletheProofWriter::applyReluLemma( const UnsatCertificateNode *node
 
     {
         matched = true;
-        proofRuleRes = String( "( step resLem" ) + id + " ( cl " + getPathClause( node ) +
-                       conclusion + ") :rule resolution :premises ( causResLem" + id + " equiv" +
-                       identifier + "_a1) ) \n";
+        proofRuleRes = String( "( step resLem" ) + id + " ( cl " +
+                       getNegatedSplitsClause( getPathSplits( node ) ) + conclusion +
+                       ") :rule resolution :premises ( causResLem" + id + " equiv" + identifier +
+                       "_a1) ) \n";
     }
     // If lb of b is negative x, then ub of aux is -x
     else if ( causingVar == b && causingVarBound == Tightening::LB && affectedVar == aux &&
@@ -618,8 +639,9 @@ List<String> AletheProofWriter::applyReluLemma( const UnsatCertificateNode *node
         proofRule += String( "( step aFarkasLem" ) + id + " " + subFarkasClause +
                      ") :rule la_generic :args (1 1 -1 1 -1) )\n";
 
-        proofRuleRes += String( "( step resLem" ) + id + " ( cl " + getPathClause( node ) +
-                        conclusion + ") :rule resolution :premises ( causResLem" + id + " e" +
+        proofRuleRes += String( "( step resLem" ) + id + " ( cl " +
+                        getNegatedSplitsClause( getPathSplits( node ) ) + conclusion +
+                        ") :rule resolution :premises ( causResLem" + id + " e" +
                         std::to_string( identifierInt - ( _n - _m ) ) + " l" + identifier +
                         " aFarkasLem" + id + " tautSplit" + id + " split" + identifier +
                         "_a1 split" + identifier + " split" + identifier + "_i1 ) ) \n";
@@ -652,8 +674,9 @@ List<String> AletheProofWriter::applyReluLemma( const UnsatCertificateNode *node
         proofRule += String( "( step aFarkasLem" ) + id + " " + subFarkasClause +
                      ") :rule la_generic :args (1 1 -1 1 1) )\n";
 
-        proofRuleRes += String( "( step resLem" ) + id + " ( cl " + getPathClause( node ) +
-                        conclusion + ") :rule resolution :premises ( causResLem" + id + " e" +
+        proofRuleRes += String( "( step resLem" ) + id + " ( cl " +
+                        getNegatedSplitsClause( getPathSplits( node ) ) + conclusion +
+                        ") :rule resolution :premises ( causResLem" + id + " e" +
                         std::to_string( identifierInt - ( _n - _m ) ) + " u" + identifier +
                         " aFarkasLem" + id + " tautSplit" + id + " split" + identifier +
                         "_a1 split" + identifier + " split" + identifier + "_i1 ) ) \n";
@@ -679,7 +702,7 @@ List<String> AletheProofWriter::applyReluLemma( const UnsatCertificateNode *node
 }
 
 void AletheProofWriter::linearCombinationMpq( const std::vector<mpq_t> &explainedRow,
-                                              const SparseUnsortedList &expl )
+                                              const SparseUnsortedList &expl ) const
 {
     SparseUnsortedList tableauRow( _n );
     for ( const auto &entry : expl )
@@ -789,7 +812,7 @@ void AletheProofWriter::farkasStrings( const SparseUnsortedList &expl,
 }
 
 
-String AletheProofWriter::convertTableauAssumptionToClause( unsigned index )
+String AletheProofWriter::convertTableauAssumptionToClause( unsigned index ) const
 {
     String assumption( _tableauAssumptions[index] );
     unsigned begin = assumption.find( "=" );
@@ -800,7 +823,7 @@ String AletheProofWriter::convertTableauAssumptionToClause( unsigned index )
 void AletheProofWriter::writeDelegatedLeaf( const UnsatCertificateNode *node )
 {
     String proofHole = String( "( step res" + std::to_string( node->getId() ) ) + " (cl " +
-                       getPathClause( node ) + ") :rule hole ) \n";
+                       getNegatedSplitsClause( getPathSplits( node ) ) + ") :rule hole ) \n";
     _proof.append( proofHole );
 }
 
