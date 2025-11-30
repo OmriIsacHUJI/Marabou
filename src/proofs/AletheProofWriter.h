@@ -50,7 +50,7 @@ private:
     Vector<String> _tableauAssumptions; // For easy access
     Vector<Stack<std::tuple<int, double>>> _currentUpperBounds;
     Vector<Stack<std::tuple<int, double>>> _currentLowerBounds;
-    List<PiecewiseLinearConstraint *> _plc;
+    Vector<PiecewiseLinearConstraint *> _plc;
     UnsatCertificateNode *_root;
     List<String> _proof;
     List<String> _assumptions;
@@ -59,7 +59,7 @@ private:
     unsigned _m;
     unsigned _stepCounter;
 
-    Map<unsigned, PiecewiseLinearConstraint *> _varToPLC;
+    Map<unsigned, unsigned > _varToSplitNum;
 
     void writeBoundAssumptions();
 
@@ -92,10 +92,10 @@ private:
 
     String convertTableauAssumptionToClause( unsigned index ) const;
 
-    bool isSplitActive( const PiecewiseLinearCaseSplit &split )const ;
+    bool isSplitActive( const PiecewiseLinearCaseSplit &split )const;
 
     void linearCombinationMpq( const std::vector<mpq_t> &explainedRow,
-                               const SparseUnsortedList &expl )const ;
+                               const SparseUnsortedList &expl )const;
 
     void farkasStrings( const SparseUnsortedList &expl,
                         String &farkasArgs,
@@ -105,6 +105,8 @@ private:
                         bool isUpper );
 
     void writeDelegatedLeaf( const UnsatCertificateNode *node );
+
+    List<PiecewiseLinearCaseSplit> splitsForVector( const UnsatCertificateNode *node, unsigned id );
 };
 
 #endif // __AletheProofWriter_h__
