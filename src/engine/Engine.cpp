@@ -1495,19 +1495,24 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
                     _groundBoundManager.addGroundBound(
                         i, _preprocessedQuery->getLowerBound( i ), Tightening::LB, false );
                 }
-            }
 
-            if ( _produceUNSATProofs && GlobalConfiguration::WRITE_ALETHE_PROOF )
-                _aletheWriter =
-                    new AletheProofWriter( _tableau->getM(),
-                                           _groundBoundManager.getAllGroundBounds( Tightening::UB ),
-                                           _groundBoundManager.getAllGroundBounds( Tightening::LB ),
-                                           _tableau->getSparseA(),
-                                           _plConstraints,
-                                           _UNSATCertificate );
-            _UNSATCertificate = new UnsatCertificateNode( NULL, PiecewiseLinearCaseSplit(), 0, 0 );
-            _UNSATCertificateCurrentPointer->set( _UNSATCertificate );
-            _UNSATCertificate->setVisited();
+                if ( _produceUNSATProofs && GlobalConfiguration::WRITE_ALETHE_PROOF )
+                    _aletheWriter = new AletheProofWriter(
+                        _tableau->getM(),
+                        _groundBoundManager.getAllGroundBounds( Tightening::UB ),
+                        _groundBoundManager.getAllGroundBounds( Tightening::LB ),
+                        _groundBoundManager,
+                        _tableau->getSparseA(),
+                        _plConstraints );
+
+                unsigned id =
+                    GlobalConfiguration::WRITE_ALETHE_PROOF ? _aletheWriter->assignId() : 0;
+
+                _UNSATCertificate =
+                    new UnsatCertificateNode( NULL, PiecewiseLinearCaseSplit(), 0, id );
+                _UNSATCertificateCurrentPointer->set( _UNSATCertificate );
+                _UNSATCertificate->setVisited();
+            }
         }
         else
         {
@@ -3445,7 +3450,8 @@ void Engine::explainSimplexFailure()
 
     ( **_UNSATCertificateCurrentPointer ).makeLeaf();
 
-    if ( GlobalConfiguration::ANALYZE_PROOF_DEPENDENCIES )
+    if ( GlobalConfiguration::ANALYZE_PROOF_DEPENDENCIES ||
+         GlobalConfiguration::WRITE_ALETHE_PROOF )
     {
         SparseUnsortedList sparseContradictionToAnalyse = SparseUnsortedList();
         leafContradictionVec.empty()
@@ -3453,8 +3459,12 @@ void Engine::explainSimplexFailure()
             : sparseContradictionToAnalyse.initialize( leafContradictionVec.data(),
                                                        leafContradictionVec.size() );
 
-        analyseExplanationDependencies(
-            sparseContradictionToAnalyse, _groundBoundManager.getCounter(), -1, true, 0 );
+        if ( GlobalConfiguration::ANALYZE_PROOF_DEPENDENCIES )
+            analyseExplanationDependencies(
+                sparseContradictionToAnalyse, _groundBoundManager.getCounter(), -1, true, 0 );
+        if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+            _aletheWriter->writeContradiction( sparseContradictionToAnalyse,
+                                               _UNSATCertificateCurrentPointer->get()->getId() );
     }
 }
 
@@ -3722,7 +3732,7 @@ bool Engine::certifyUNSATCertificate()
     }
     _UNSATCertificateCurrentPointer->get()->deleteUnusedLemmas();
     if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
-        _aletheWriter->writeAletheProof( _UNSATCertificateCurrentPointer->get() );
+        _aletheWriter->writeChildrenConclusion( _UNSATCertificateCurrentPointer->get() );
 
     struct timespec certificationStart = TimeUtils::sampleMicro();
     _precisionRestorer.restoreInitialEngineState( *this );
@@ -3735,6 +3745,7 @@ bool Engine::certifyUNSATCertificate()
         groundUpperBounds[i] = _preprocessedQuery->getUpperBound( i );
         groundLowerBounds[i] = _preprocessedQuery->getLowerBound( i );
     }
+    bool certificationSucceeded = false;
 
     if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
     {
@@ -3753,24 +3764,27 @@ bool Engine::certifyUNSATCertificate()
 
 
         _aletheWriter->writeInstanceToFile( file );
+        printf( "proof written to Alethe format and needs to be certified separately\n" );
+        certificationSucceeded = true;
+    }
+    else
+    {
+        Checker unsatCertificateChecker( _UNSATCertificate,
+                                         _tableau->getM(),
+                                         _tableau->getSparseA(),
+                                         groundUpperBounds,
+                                         groundLowerBounds,
+                                         _plConstraints );
+        certificationSucceeded = unsatCertificateChecker.check();
+        _statistics.setLongAttribute(
+            Statistics::TOTAL_CERTIFICATION_TIME,
+            TimeUtils::timePassed( certificationStart, TimeUtils::sampleMicro() ) );
+        printf( "Certification time: " );
+        _statistics.printLongAttributeAsTime(
+            _statistics.getLongAttribute( Statistics::TOTAL_CERTIFICATION_TIME ) );
     }
 
-    Checker unsatCertificateChecker( _UNSATCertificate,
-                                     _tableau->getM(),
-                                     _tableau->getSparseA(),
-                                     groundUpperBounds,
-                                     groundLowerBounds,
-                                     _plConstraints );
-    bool certificationSucceeded = unsatCertificateChecker.check();
-
-    _statistics.setLongAttribute(
-        Statistics::TOTAL_CERTIFICATION_TIME,
-        TimeUtils::timePassed( certificationStart, TimeUtils::sampleMicro() ) );
-    printf( "Certification time: " );
-    _statistics.printLongAttributeAsTime(
-        _statistics.getLongAttribute( Statistics::TOTAL_CERTIFICATION_TIME ) );
-
-    if ( certificationSucceeded )
+    if ( certificationSucceeded && !GlobalConfiguration::WRITE_ALETHE_PROOF )
     {
         printf( "Certified\n" );
         _statistics.incUnsignedAttribute( Statistics::CERTIFIED_UNSAT );
@@ -3778,7 +3792,7 @@ bool Engine::certifyUNSATCertificate()
             printf( "Some leaves were delegated and need to be certified separately by an SMT "
                     "solver\n" );
     }
-    else
+    else if ( !GlobalConfiguration::WRITE_ALETHE_PROOF )
         printf( "Error certifying UNSAT certificate\n" );
 
     DEBUG( {
@@ -3808,6 +3822,9 @@ void Engine::markLeafToDelegate()
 
     if ( !currentUnsatCertificateNode->getChildren().empty() )
         currentUnsatCertificateNode->makeLeaf();
+
+    if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+        _aletheWriter->writeDelegatedLeaf( _UNSATCertificateCurrentPointer->get() );
 }
 
 const Vector<double> Engine::computeContradiction( unsigned infeasibleVar ) const
@@ -3955,6 +3972,9 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
                                             entry->lemma->getMinTargetBound() );
         }
 
+        if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+            _aletheWriter->writeLemma( entry );
+
         return { entry };
     }
 
@@ -4078,6 +4098,9 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
 
                 std::advance( it, 1 );
             }
+
+            if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+                _aletheWriter->writeLemma( entry );
         }
     }
 

@@ -167,7 +167,7 @@ void UnsatCertificateNode::deleteUnusedLemmas()
 {
     if ( GlobalConfiguration::ANALYZE_PROOF_DEPENDENCIES )
         for ( auto &lemma : _PLCExplanations )
-            if ( lemma && !lemma->getToCheck() )
+            if ( ( lemma && !lemma->getToCheck() ) || GlobalConfiguration::WRITE_ALETHE_PROOF )
                 lemma = nullptr;
 }
 

@@ -108,186 +108,191 @@ public:
         String expectedLine;
 
         line = file->readLine( '\n' );
-        expectedLine = "( set-logic QF_LRA )";
+        expectedLine = "(set-logic QF_LRA)";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = "( declare-fun x0 () Real )";
+        expectedLine = "(declare-fun x0 () Real)";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = "( declare-fun x1 () Real )";
+        expectedLine = "(declare-fun x1 () Real)";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         // Bounds
         line = file->readLine( '\n' );
-        expectedLine = String( "( assert ( <= x0 " ) + SmtLibWriter::signedValue( 1.0 ) + " ) )";
+        expectedLine = String( "(assert (<= x0 " ) + SmtLibWriter::signedValue( 1.0 ) + "))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( assert ( <= x1 " ) + SmtLibWriter::signedValue( 1.0 ) + " ) )";
+        expectedLine = String( "(assert (<= x1 " ) + SmtLibWriter::signedValue( 1.0 ) + "))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( assert ( >= x0 " ) + SmtLibWriter::signedValue( 1.0 ) + " ) )";
+        expectedLine = String( "(assert (>= x0 " ) + SmtLibWriter::signedValue( 1.0 ) + "))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( assert ( >= x1 " ) + SmtLibWriter::signedValue( -1.0 ) + " ) )";
+        expectedLine = String( "(assert (>= x1 " ) + SmtLibWriter::signedValue( -1.0 ) + "))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         // Tableau
         line = file->readLine( '\n' );
-        expectedLine = "( assert ( = 0.0 ( + x0 ( * 2 x1 ) ) ) )";
+        expectedLine = "(assert (= 0.0 (+ x0 (* 2 x1))))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         // Relu
         line = file->readLine( '\n' );
-        expectedLine = "( assert ( or ( and ( >= x0 0.0 ) ( <= x2 0.0 ) ) ( and ( <= x0 0.0 ) ( <= "
-                       "x1 0.0 ) ) ) )";
+        expectedLine = "(assert (or (and (>= x0 0.0) (<= x2 0.0)) (and (<= x0 0.0) (<= x1 0.0))))";
+        TS_ASSERT_EQUALS( line, expectedLine );
+
+        line = file->readLine( '\n' );
+        expectedLine = "(assert (= (>= x0 0.0) (<= x2 0.0)))";
+        TS_ASSERT_EQUALS( line, expectedLine );
+
+        line = file->readLine( '\n' );
+        expectedLine = "(assert (= (<= x0 0.0) (<= x1 0.0)))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         // Sign
         line = file->readLine( '\n' );
-        expectedLine = "( assert ( = x1 ( ite ( >= x0 0.0 ) 1.0 ( - 1.0 ) ) ) )";
+        expectedLine = "(assert (= x1 (ite (>= x0 0.0) 1.0 (- 1.0))))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         // Absolute Value
         line = file->readLine( '\n' );
-        expectedLine = "( assert ( = x1 ( ite ( >= x0 0.0 ) x0 ( - x0 ) ) ) )";
+        expectedLine = "(assert (= x1 (ite (>= x0 0.0) x0 (- x0))))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         // LeakyRelu
         line = file->readLine( '\n' );
-        expectedLine = "( assert ( = x1 ( ite ( >= x0 0 ) x0 ( * 0.1 x0 ) ) ) )";
+        expectedLine = "(assert (= x1 (ite (>= x0 0) x0 (* 0.1 x0))))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         // Max
         line = file->readLine( '\n' );
-        expectedLine = String( "( assert ( => ( and ( >= x2 x3 ) ( >= x2 x4 ) ) ( = x1 x2 ) ) )" );
+        expectedLine = String( "(assert (=> (and (>= x2 x3) (>= x2 x4)) (= x1 x2)))" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( assert ( => ( and ( >= x3 x2 ) ( >= x3 x4 ) ) ( = x1 x3 ) ) )" );
+        expectedLine = String( "(assert (=> (and (>= x3 x2) (>= x3 x4)) (= x1 x3)))" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( assert ( => ( and ( >= x4 x2 ) ( >= x4 x3 ) ) ( = x1 x4 ) ) )" );
+        expectedLine = String( "(assert (=> (and (>= x4 x2) (>= x4 x3)) (= x1 x4)))" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         // Disjunctions (several cases)
         line = file->readLine( '\n' );
-        expectedLine = String( "( assert" );
+        expectedLine = String( "(assert" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( or" );
+        expectedLine = String( "(or" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine =
-            String( "( and ( = ( - 4.0 ) ( + x0 ( * ( - 2.0 ) x1 ) ) ) ( <= x1 ( - 2.0 ) ) )" );
+        expectedLine = String( "(and (= (- 4.0) (+ x0 (* (- 2.0) x1))) (<= x1 (- 2.0)))" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( and ( >= x1 2.0 )( <= x0 ( - 1.5 ) ) )" );
+        expectedLine = String( "(and (>= x1 2.0)(<= x0 (- 1.5)))" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( " ) )" );
+        expectedLine = String( "))" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( assert" );
+        expectedLine = String( "(assert" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( or" );
+        expectedLine = String( "(or" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( = 1.0 ( - x1 ) ) " );
+        expectedLine = String( "(= 1.0 (- x1)) " );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( or" );
+        expectedLine = String( "(or" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( = 1.0 ( - x2 ) ) " );
+        expectedLine = String( "(= 1.0 (- x2)) " );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( = 1.0 ( - x3 ) ) " );
+        expectedLine = String( "(= 1.0 (- x3)) " );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( " ) ) )" );
+        expectedLine = String( ")))" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( assert" );
+        expectedLine = String( "(assert" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( >= x1 2.0 )" );
+        expectedLine = String( "(>= x1 2.0)" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( " )" );
+        expectedLine = String( ")" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( assert" );
+        expectedLine = String( "(assert" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( or" );
+        expectedLine = String( "(or" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( = 1.0 ( - x1 ) ) " );
+        expectedLine = String( "(= 1.0 (- x1)) " );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( >= x1 2.0 )" );
+        expectedLine = String( "(>= x1 2.0)" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( " ) )" );
+        expectedLine = String( "))" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( assert" );
+        expectedLine = String( "(assert" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( and ( >= x1 2.0 )( and ( >= x1 2.0 )( <= x0 ( - 1.5 ) ) ) )" );
+        expectedLine = String( "(and (>= x1 2.0)(and (>= x1 2.0)(<= x0 (- 1.5))))" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( " )" );
+        expectedLine = String( ")" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "( assert" );
+        expectedLine = String( "(assert" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine =
-            String( "( and ( = 1.0 ( - x1 ) ) ( and ( = 1.0 ( - x1 ) ) ( = 1.0 ( - x1 ) )  ) )" );
+        expectedLine = String( "(and (= 1.0 (- x1)) (and (= 1.0 (- x1)) (= 1.0 (- x1)) ))" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( " )" );
+        expectedLine = String( ")" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = "( check-sat )";
+        expectedLine = "(check-sat)";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = "( exit )";
+        expectedLine = "(exit)";
         TS_ASSERT_EQUALS( line, expectedLine );
     }
 };

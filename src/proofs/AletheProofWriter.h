@@ -14,6 +14,7 @@
 #ifndef __AletheProofWriter_h__
 #define __AletheProofWriter_h__
 
+#include "GroundBoundManager.h"
 #include "PiecewiseLinearCaseSplit.h"
 #include "SmtLibWriter.h"
 #include "SparseMatrix.h"
@@ -31,27 +32,31 @@ public:
     AletheProofWriter( unsigned explanationSize,
                        const Vector<double> &upperBounds,
                        const Vector<double> &lowerBounds,
+                       const GroundBoundManager &groundBoundManager,
                        const SparseMatrix *tableau,
-                       const List<PiecewiseLinearConstraint *> &problemConstraints,
-                       UnsatCertificateNode *root );
+                       const List<PiecewiseLinearConstraint *> &problemConstraints);
 
-
-    void writeAletheProof( IFile &file );
 
     void writeInstanceToFile( IFile &file );
 
-    void writeAletheProof( const UnsatCertificateNode *node, bool toRecurse = false );
+    void writeChildrenConclusion( const UnsatCertificateNode *node );
 
     unsigned assignId();
 
+    void writeDelegatedLeaf( const UnsatCertificateNode *node );
+
+    void writeLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry );
+
+    void writeContradiction( const SparseUnsortedList &contradiction, unsigned nodeId );
 
 private:
     const SparseMatrix *_initialTableau;
     Vector<String> _tableauAssumptions; // For easy access
     Vector<Stack<std::tuple<int, double>>> _currentUpperBounds;
     Vector<Stack<std::tuple<int, double>>> _currentLowerBounds;
+    const GroundBoundManager &_groundBoundManager;
     Vector<PiecewiseLinearConstraint *> _plc;
-    UnsatCertificateNode *_root;
+
     List<String> _proof;
     List<String> _assumptions;
 
@@ -59,7 +64,9 @@ private:
     unsigned _m;
     unsigned _stepCounter;
 
-    Map<unsigned, unsigned > _varToSplitNum;
+    Map<unsigned, PiecewiseLinearConstraint *> _varToPlc;
+    Map<unsigned, List<Tightening>> _idToSplits;
+    Map<unsigned, List<Tightening>> _nodeToSplits;
 
     void writeBoundAssumptions();
 
@@ -67,24 +74,17 @@ private:
 
     void writeTableauAssumptions();
 
-    void applyContradiction( const UnsatCertificateNode *node );
-
-    void concludeChildrenUnsat( const UnsatCertificateNode *node, List<unsigned> childrenIndices );
-
-    void applyAllLemmas( const UnsatCertificateNode *node );
-
-    List<String>
-    applyReluLemma( const UnsatCertificateNode *node, const PLCLemma &lemma, ReluConstraint *plc );
+    void writeReluLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry, const ReluConstraint *relu );
 
     void insertCurrentBoundsToVec( bool isUpper, Vector<double> &boundsVec );
 
     String getNegatedSplitsClause( const List<PiecewiseLinearCaseSplit> &splits ) const;
 
-    String getSplitsResSteps( const List<PiecewiseLinearCaseSplit> &splits )const;
+    String getSplitsResSteps( const List<PiecewiseLinearCaseSplit> &splits ) const;
 
-    List<PiecewiseLinearCaseSplit> getPathSplits( const UnsatCertificateNode *node )const;
+    List<PiecewiseLinearCaseSplit> getPathSplits( const UnsatCertificateNode *node ) const;
 
-    String getSplitsAsClause( const List<PiecewiseLinearCaseSplit> &splits )const;
+    String getSplitsAsClause( const List<PiecewiseLinearCaseSplit> &splits ) const;
 
     String getSplitAsClause( const PiecewiseLinearCaseSplit &split ) const;
 
@@ -92,21 +92,19 @@ private:
 
     String convertTableauAssumptionToClause( unsigned index ) const;
 
-    bool isSplitActive( const PiecewiseLinearCaseSplit &split )const;
+    bool isSplitActive( const PiecewiseLinearCaseSplit &split ) const;
 
     void linearCombinationMpq( const std::vector<mpq_t> &explainedRow,
-                               const SparseUnsortedList &expl )const;
+                               const SparseUnsortedList &expl ) const;
 
     void farkasStrings( const SparseUnsortedList &expl,
+                        unsigned entryId,
                         String &farkasArgs,
                         String &farkasClause,
                         String &farkasParticipants,
+                        String &negatedSplitClause,
                         int explainerVar,
                         bool isUpper );
-
-    void writeDelegatedLeaf( const UnsatCertificateNode *node );
-
-    List<PiecewiseLinearCaseSplit> splitsForVector( const UnsatCertificateNode *node, unsigned id );
 };
 
 #endif // __AletheProofWriter_h__
