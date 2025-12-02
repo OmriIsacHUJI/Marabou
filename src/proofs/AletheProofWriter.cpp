@@ -293,9 +293,6 @@ void AletheProofWriter::writeChildrenConclusion( const UnsatCertificateNode *nod
 
     _nodeToSplits.insert( node->getId(), filteredTighteneings );
 
-    if ( splitDeps.empty() )
-        _terminateProof = true;
-
     ASSERT( node->isValidNonLeaf() );
     ASSERT( childrenIndices.size() == 2 )
     String resLine = String( "(step r" + std::to_string( node->getId() ) + " (cl " ) +
