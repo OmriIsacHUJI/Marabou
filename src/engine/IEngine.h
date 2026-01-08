@@ -197,9 +197,24 @@ public:
     virtual std::shared_ptr<GroundBoundManager::GroundBoundEntry>
     setGroundBoundFromLemma( const std::shared_ptr<PLCLemma> lemma, bool isPhaseFixing ) = 0;
 
+    /*
+     Get the list of PLC registered in the engine
+    */
     virtual const List<PiecewiseLinearConstraint *> *getPiecewiseLinearConstraints() const = 0;
 
+    /*
+     Get the alethe proof writer object
+    */
     virtual AletheProofWriter *getAletheWriter() const = 0;
+
+    /*
+     Delete the data stored as part of the alethe proof
+    */
+    virtual void deleteProofIfExists() const = 0;
+
+    /*
+     Get the number of PLC lemmas
+    */
     virtual unsigned getNumOfLemmas() const = 0;
 
 };

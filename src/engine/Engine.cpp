@@ -4116,3 +4116,9 @@ unsigned Engine::getNumOfLemmas() const
 {
     return _statistics.getUnsignedAttribute( Statistics::NUM_LEMMAS );
 }
+
+void Engine::deleteProofIfExists() const
+{
+    if ( _produceUNSATProofs && GlobalConfiguration::WRITE_ALETHE_PROOF )
+        _aletheWriter->deleteProof();
+}

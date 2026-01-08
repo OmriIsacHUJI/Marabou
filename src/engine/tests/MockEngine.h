@@ -304,6 +304,10 @@ public:
         return NULL;
     }
 
+    void deleteProofIfExists() const override
+    {
+    }
+
     unsigned getNumOfLemmas() const
     {
         return 0;

@@ -315,6 +315,9 @@ public:
     const List<PiecewiseLinearConstraint *> *getPiecewiseLinearConstraints() const override;
 
     AletheProofWriter *getAletheWriter() const override;
+
+    void deleteProofIfExists() const override;
+
     unsigned getNumOfLemmas() const override;
 
 
