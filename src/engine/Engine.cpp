@@ -1885,7 +1885,7 @@ void Engine::restoreState( const EngineState &state )
     _searchTreeHandler.resetSplitConditions();
 
     if ( GlobalConfiguration::WRITE_ALETHE_PROOF &&
-                state._tableauStateStorageLevel == TableauStateStorageLevel::STORE_ENTIRE_TABLEAU_STATE )
+         state._tableauStateStorageLevel == TableauStateStorageLevel::STORE_ENTIRE_TABLEAU_STATE )
         _aletheWriter->setInitialTableau( _tableau->getSparseA() );
 }
 
