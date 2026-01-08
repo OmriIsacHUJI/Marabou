@@ -216,7 +216,6 @@ public:
      Get the number of PLC lemmas
     */
     virtual unsigned getNumOfLemmas() const = 0;
-
 };
 
 #endif // __IEngine_h__

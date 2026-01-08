@@ -34,7 +34,7 @@ public:
               const Vector<SparseUnsortedList> &explanation,
               PiecewiseLinearFunctionType constraintType,
               double minTargetBound,
-              unsigned id);
+              unsigned id );
 
     ~PLCLemma();
 

@@ -180,11 +180,13 @@ void JsonWriter::writeUnsatCertificateNode( const UnsatCertificateNode *node,
 
         unsigned counter = 0;
         unsigned size = node->getChildren().size();
-        List<UnsatCertificateNode *> childrenInFixedOrder =  List<UnsatCertificateNode *>();
-        const List<Tightening> &backChildTightening = node->getChildren().back()->getSplit().getBoundTightenings();
+        List<UnsatCertificateNode *> childrenInFixedOrder = List<UnsatCertificateNode *>();
+        const List<Tightening> &backChildTightening =
+            node->getChildren().back()->getSplit().getBoundTightenings();
 
         // Insert the inactive phase first
-        if (backChildTightening.back()._type == Tightening::LB || backChildTightening.front()._type == Tightening::LB )
+        if ( backChildTightening.back()._type == Tightening::LB ||
+             backChildTightening.front()._type == Tightening::LB )
         {
             childrenInFixedOrder.append( node->getChildren().front() );
             childrenInFixedOrder.append( node->getChildren().back() );
