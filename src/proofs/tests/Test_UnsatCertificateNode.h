@@ -39,8 +39,8 @@ public:
         PiecewiseLinearCaseSplit split1 = splits.back();
         PiecewiseLinearCaseSplit split2 = splits.front();
 
-        auto *child1 = new UnsatCertificateNode( root, split1, 1,0 );
-        auto *child2 = new UnsatCertificateNode( root, split2, 1,0 );
+        auto *child1 = new UnsatCertificateNode( root, split1, 1, 0 );
+        auto *child2 = new UnsatCertificateNode( root, split2, 1, 0 );
 
         TS_ASSERT_EQUALS( child1->getParent(), root );
         TS_ASSERT_EQUALS( child2->getParent(), root );

@@ -224,7 +224,7 @@ void Marabou::solveQuery()
         _engine->solve( timeoutInSeconds );
         if ( _engine->shouldProduceProofs() && _engine->getExitCode() == Engine::UNSAT )
             _engine->certifyUNSATCertificate();
-        else if (_engine->shouldProduceProofs())
+        else if ( _engine->shouldProduceProofs() )
             _engine->deleteProofIfExists();
     }
 

@@ -44,7 +44,7 @@ class UnsatCertificateNode;
 class IEngine
 {
 public:
-    virtual ~IEngine(){};
+    virtual ~IEngine() {};
 
     enum ExitCode {
         UNSAT = 0,
@@ -216,7 +216,6 @@ public:
      Get the number of PLC lemmas
     */
     virtual unsigned getNumOfLemmas() const = 0;
-
 };
 
 #endif // __IEngine_h__
