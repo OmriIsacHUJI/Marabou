@@ -768,3 +768,8 @@ unsigned AletheProofWriter::assignId()
 {
     return _stepCounter++;
 }
+
+void AletheProofWriter::deleteProof()
+{
+    _proof.clear();
+}

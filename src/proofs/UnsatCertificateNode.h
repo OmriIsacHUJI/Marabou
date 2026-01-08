@@ -135,7 +135,7 @@ public:
 
     unsigned getSplitNum() const;
     unsigned getId() const;
-    void setId(unsigned id) const;
+    void setId( unsigned id ) const;
 
 private:
     List<UnsatCertificateNode *> _children;

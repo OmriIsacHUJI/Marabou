@@ -34,7 +34,7 @@ public:
                        const Vector<double> &lowerBounds,
                        const GroundBoundManager &groundBoundManager,
                        const SparseMatrix *tableau,
-                       const List<PiecewiseLinearConstraint *> &problemConstraints);
+                       const List<PiecewiseLinearConstraint *> &problemConstraints );
 
 
     void writeInstanceToFile( IFile &file );
@@ -48,6 +48,8 @@ public:
     void writeLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry );
 
     void writeContradiction( const SparseUnsortedList &contradiction, unsigned nodeId );
+
+    void deleteProof();
 
 private:
     const SparseMatrix *_initialTableau;

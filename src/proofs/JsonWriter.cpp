@@ -186,13 +186,13 @@ void JsonWriter::writeUnsatCertificateNode( const UnsatCertificateNode *node,
         // Insert the inactive phase first
         if (backChildTightening.back()._type == Tightening::LB || backChildTightening.front()._type == Tightening::LB )
         {
-            childrenInFixedOrder.append( node->getChildren().front());
-            childrenInFixedOrder.append( node->getChildren().back());
+            childrenInFixedOrder.append( node->getChildren().front() );
+            childrenInFixedOrder.append( node->getChildren().back() );
         }
         else
         {
-            childrenInFixedOrder.append( node->getChildren().back());
-            childrenInFixedOrder.append( node->getChildren().front());
+            childrenInFixedOrder.append( node->getChildren().back() );
+            childrenInFixedOrder.append( node->getChildren().front() );
         }
 
         for ( auto child : childrenInFixedOrder )
