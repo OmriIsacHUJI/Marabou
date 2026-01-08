@@ -1883,6 +1883,10 @@ void Engine::restoreState( const EngineState &state )
 
     // Reset the violation counts in the Search Tree handler
     _searchTreeHandler.resetSplitConditions();
+
+    if ( GlobalConfiguration::WRITE_ALETHE_PROOF &&
+                state._tableauStateStorageLevel == TableauStateStorageLevel::STORE_ENTIRE_TABLEAU_STATE )
+        _aletheWriter->setInitialTableau( _tableau->getSparseA() );
 }
 
 void Engine::setNumPlConstraintsDisabledByValidSplits( unsigned numConstraints )

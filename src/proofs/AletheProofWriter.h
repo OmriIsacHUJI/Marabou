@@ -51,6 +51,8 @@ public:
 
     void deleteProof();
 
+    void setInitialTableau( const SparseMatrix *tableau );
+
 private:
     const SparseMatrix *_initialTableau;
     Vector<String> _tableauAssumptions; // For easy access

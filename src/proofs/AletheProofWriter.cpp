@@ -773,3 +773,8 @@ void AletheProofWriter::deleteProof()
 {
     _proof.clear();
 }
+
+void AletheProofWriter::setInitialTableau( const SparseMatrix *tableau )
+{
+    _initialTableau = tableau;
+}
