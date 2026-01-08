@@ -35,7 +35,10 @@ enum DelegationStatus : unsigned {
 class UnsatCertificateNode
 {
 public:
-    UnsatCertificateNode( UnsatCertificateNode *parent, PiecewiseLinearCaseSplit split, unsigned splitNum, unsigned id );
+    UnsatCertificateNode( UnsatCertificateNode *parent,
+                          PiecewiseLinearCaseSplit split,
+                          unsigned splitNum,
+                          unsigned id );
     ~UnsatCertificateNode();
 
     /*

@@ -76,7 +76,8 @@ private:
 
     void writeTableauAssumptions();
 
-    void writeReluLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry, const ReluConstraint *relu );
+    void writeReluLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry,
+                         const ReluConstraint *relu );
 
     void insertCurrentBoundsToVec( bool isUpper, Vector<double> &boundsVec );
 

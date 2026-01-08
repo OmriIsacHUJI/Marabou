@@ -410,7 +410,6 @@ void AletheProofWriter::writeReluLemma(
     const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry,
     const ReluConstraint *relu )
 {
-
     ASSERT( lemmaEntry->lemma && lemmaEntry->lemma->getConstraintType() == RELU );
     const std::shared_ptr<PLCLemma> lemma = lemmaEntry->lemma;
 

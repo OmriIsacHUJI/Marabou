@@ -48,8 +48,11 @@ public:
     /*
       Adds a line representing a ReLU constraint, in SMTLIB format, to the SMTLIB instance
     */
-    static void
-    addReLUConstraint( unsigned b, unsigned f, unsigned aux, const PhaseStatus status, List<String> &instance );
+    static void addReLUConstraint( unsigned b,
+                                   unsigned f,
+                                   unsigned aux,
+                                   const PhaseStatus status,
+                                   List<String> &instance );
 
     /*
       Adds a line representing a sign constraint, in SMTLIB format, to the SMTLIB instance
@@ -125,13 +128,14 @@ public:
     /*
       Wrapper functions calling all previous functions
     */
-    static List<String> convertToSmtLib( unsigned numOfTableauRows,
-                                   unsigned numOfVariables,
-                                   const Vector<double> &upperBounds,
-                                   const Vector<double> &lowerBounds,
-                                   const SparseMatrix *tableau,
-                                   const List<Equation> &additionalEquations,
-                                   const List<PiecewiseLinearConstraint *> &problemConstraints );
+    static List<String>
+    convertToSmtLib( unsigned numOfTableauRows,
+                     unsigned numOfVariables,
+                     const Vector<double> &upperBounds,
+                     const Vector<double> &lowerBounds,
+                     const SparseMatrix *tableau,
+                     const List<Equation> &additionalEquations,
+                     const List<PiecewiseLinearConstraint *> &problemConstraints );
 
 
     static void writeToSmtLibFile( const String &fileName,

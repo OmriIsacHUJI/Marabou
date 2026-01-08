@@ -255,8 +255,7 @@ void SmtLibWriter::addMaxConstraint( unsigned f,
             for ( unsigned i = 0; i < size - 2; ++i )
                 assertRowLine += String( ")" );
 
-            assertRowLine +=
-                " (= x" + std::to_string( f ) + " x" + std::to_string( element ) + ")";
+            assertRowLine += " (= x" + std::to_string( f ) + " x" + std::to_string( element ) + ")";
 
             instance.append( assertRowLine + "))\n" );
         }
