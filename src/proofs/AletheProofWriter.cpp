@@ -760,6 +760,13 @@ void AletheProofWriter::writeDelegatedLeaf( const UnsatCertificateNode *node )
 {
     String proofHole = String( "(step r" + std::to_string( node->getId() ) ) + " (cl " +
                        getNegatedSplitsClause( getPathSplits( node ) ) + "):rule hole)\n";
+
+    List<Tightening> deps = {};
+    for ( const auto &split : getPathSplits( node ) )
+        for ( const auto tightening : split.getBoundTightenings() )
+            deps.append( tightening );
+
+    _nodeToSplits.insert( node->getId(), deps );
     _proof.append( proofHole );
 }
 
