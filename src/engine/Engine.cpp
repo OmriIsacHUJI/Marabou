@@ -4018,7 +4018,7 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
     // Iterate through all deduced bounds, check which participated in the explanation
     for ( unsigned var = 0; var < linearCombination.size(); ++var )
     {
-        if ( !FloatUtils::isZero( linearCombination[var] ) )
+        if ( !FloatUtils::isZero( linearCombination[var], GlobalConfiguration::LEMMA_CERTIFICATION_TOLERANCE ) )
         {
             Tightening::BoundType btype = ( ( linearCombination[var] > 0 ) && isUpper ) ||
                                                   ( ( linearCombination[var] < 0 ) && !isUpper )

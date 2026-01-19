@@ -173,7 +173,14 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
                 // If we're in the active phase, aux should be 0
                 if ( proofs && _auxVarInUse )
                     _boundManager->addLemmaExplanationAndTightenBound(
-                        _aux, 0, Tightening::UB, { variable }, Tightening::LB, *this, true, bound );
+                        _aux,
+                        0,
+                        Tightening::UB,
+                        { variable },
+                        Tightening::LB,
+                        *this,
+                        true,
+                        GlobalConfiguration::LEMMA_CERTIFICATION_TOLERANCE );
                 else if ( !proofs && _auxVarInUse )
                     _boundManager->tightenUpperBound( _aux, 0 );
 
@@ -198,7 +205,14 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
             {
                 if ( proofs )
                     _boundManager->addLemmaExplanationAndTightenBound(
-                        _f, 0, Tightening::UB, { variable }, Tightening::LB, *this, true, bound );
+                        _f,
+                        0,
+                        Tightening::UB,
+                        { variable },
+                        Tightening::LB,
+                        *this,
+                        true,
+                        GlobalConfiguration::LEMMA_CERTIFICATION_TOLERANCE );
                 else
                     _boundManager->tightenUpperBound( _f, 0 );
 
@@ -234,7 +248,14 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
             {
                 if ( proofs )
                     _boundManager->addLemmaExplanationAndTightenBound(
-                        _f, 0, Tightening::LB, { variable }, Tightening::LB, *this, false, 0 );
+                        _f,
+                        0,
+                        Tightening::LB,
+                        { variable },
+                        Tightening::LB,
+                        *this,
+                        false,
+                        -GlobalConfiguration::LEMMA_CERTIFICATION_TOLERANCE );
                 else
                     _boundManager->tightenLowerBound( _f, 0 );
             }
@@ -278,15 +299,14 @@ void ReluConstraint::notifyUpperBound( unsigned variable, double newBound )
                     else
                     {
                         if ( !FloatUtils::isPositive( bound ) )
-                            _boundManager->addLemmaExplanationAndTightenBound(
-                                _b,
-                                0,
-                                Tightening::UB,
-                                { variable },
-                                Tightening::UB,
-                                *this,
-                                true,
-                                FloatUtils::isZero( bound ) ? 0 : bound );
+                            _boundManager->addLemmaExplanationAndTightenBound( _b,
+                                                                               0,
+                                                                               Tightening::UB,
+                                                                               { variable },
+                                                                               Tightening::UB,
+                                                                               *this,
+                                                                               true,
+                                                                               0 );
                         // Bound cannot be negative if ReLU is inactive
                         if ( FloatUtils::isNegative( bound ) )
                             throw InfeasibleQueryException();
@@ -302,14 +322,7 @@ void ReluConstraint::notifyUpperBound( unsigned variable, double newBound )
                     // If b has a non-positive upper bound, f's upper bound is 0
                     if ( proofs )
                         _boundManager->addLemmaExplanationAndTightenBound(
-                            _f,
-                            0,
-                            Tightening::UB,
-                            { variable },
-                            Tightening::UB,
-                            *this,
-                            true,
-                            FloatUtils::isZero( bound ) ? 0 : bound );
+                            _f, 0, Tightening::UB, { variable }, Tightening::UB, *this, true, 0 );
                     else
                         _boundManager->tightenUpperBound( _f, 0 );
 
@@ -349,15 +362,14 @@ void ReluConstraint::notifyUpperBound( unsigned variable, double newBound )
                     else
                     {
                         if ( !FloatUtils::isPositive( bound ) )
-                            _boundManager->addLemmaExplanationAndTightenBound(
-                                _b,
-                                0,
-                                Tightening::LB,
-                                { variable },
-                                Tightening::UB,
-                                *this,
-                                true,
-                                FloatUtils::isZero( bound ) ? 0 : bound );
+                            _boundManager->addLemmaExplanationAndTightenBound( _b,
+                                                                               0,
+                                                                               Tightening::LB,
+                                                                               { variable },
+                                                                               Tightening::UB,
+                                                                               *this,
+                                                                               true,
+                                                                               0 );
                         // Bound cannot be negative if ReLU is active
                         if ( FloatUtils::isNegative( bound ) )
                             throw InfeasibleQueryException();
