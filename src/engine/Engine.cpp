@@ -3499,7 +3499,7 @@ bool Engine::certifyInfeasibility( unsigned var ) const
         _groundBoundManager.getAllGroundBounds( Tightening::UB ).data(),
         _groundBoundManager.getAllGroundBounds( Tightening::LB ).data(),
         _tableau->getN() );
-    return FloatUtils::isNegative( derivedBound, GlobalConfiguration::CONTRADICTION_THRESHOLD );
+    return FloatUtils::isNegative( derivedBound );
 }
 
 double Engine::explainBound( unsigned var, bool isUpper ) const
