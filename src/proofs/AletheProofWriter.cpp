@@ -420,8 +420,8 @@ void AletheProofWriter::writeReluLemma(
 
     String ruleName = GlobalConfiguration::DEDICATED_ALEHTE_RULE ? "bounded_farkas" : "la_generic";
 
-    String laGeneric =
-        String( "(step fl" ) + id + " " + farkasClause + ":rule " + ruleName + " :args" + farkasArgs;
+    String laGeneric = String( "(step fl" ) + id + " " + farkasClause + ":rule " + ruleName +
+                       " :args" + farkasArgs;
 
     String res = String( "(step cr" ) + id + " (cl " + negatedSplitClause + causeBound +
                  "):rule resolution :premises(fl" + id + " " + farkasParticipants + "))\n";
@@ -443,19 +443,19 @@ void AletheProofWriter::writeReluLemma(
     else
         tempString += String( "(not" ) + causeBound + ")" +
                       getBoundAsClause( Tightening(
-                              causingVar, 0, targetBound > 0 ? Tightening::LB : Tightening::UB ) );
+                          causingVar, 0, targetBound > 0 ? Tightening::LB : Tightening::UB ) );
 
     if ( targetBound != 0 )
     {
-        proofRule = String( "(step taut" ) + id + " (cl (or " + tempString +
-                    ")):rule la_tautology)\n";
-        proofRule += String( "(step ts" ) + id + " (cl " + tempString +
-                     "):rule or :premises(taut" + id + "))\n";
+        proofRule =
+            String( "(step taut" ) + id + " (cl (or " + tempString + ")):rule la_tautology)\n";
+        proofRule += String( "(step ts" ) + id + " (cl " + tempString + "):rule or :premises(taut" +
+                     id + "))\n";
     }
     String conclusion = getBoundAsClause( Tightening( affectedVar, bound, affectedVarBound ) );
 
-    String pref = String( "(step rl" ) + id + " (cl " + negatedSplitClause +
-                  conclusion + "):rule resolution :premises(cr" + id;
+    String pref = String( "(step rl" ) + id + " (cl " + negatedSplitClause + conclusion +
+                  "):rule resolution :premises(cr" + id;
     if ( ( causingVar == f || causingVar == b ) && causingVarBound == Tightening::LB &&
          affectedVar == aux && affectedVarBound == Tightening::UB && targetBound > 0 )
     {
@@ -521,9 +521,11 @@ void AletheProofWriter::writeReluLemma(
         String tautClause = String( "(not " ) +
                             getBoundAsClause( Tightening( affectedVar, 0, Tightening::UB ) ) + ")" +
                             conclusion;
-        proofRule = String( "(step taut" ) + id + " (cl (or " + tautClause + ")):rule la_tautology)\n";
+        proofRule =
+            String( "(step taut" ) + id + " (cl (or " + tautClause + ")):rule la_tautology)\n";
 
-        proofRule += String( "(step ts" ) + id + " (cl " + tautClause + "):rule or :premises(taut" + id + "))\n";
+        proofRule += String( "(step ts" ) + id + " (cl " + tautClause + "):rule or :premises(taut" +
+                     id + "))\n";
 
         String counterpartBound =
             getBoundAsClause( Tightening( identifierInt, 0, Tightening::LB ) );
@@ -532,11 +534,12 @@ void AletheProofWriter::writeReluLemma(
         String subFarkasClause = String( " (cl (not " ) + causeBound + ")" + conclusion + "(not " +
                                  subConclusion + ")(not " + counterpartBound + ")" + tableauLit;
 
-        proofRule += String( "(step ifl" ) + id + subFarkasClause + "):rule la_generic :args(1 1 -1 1 -1))\n";
+        proofRule += String( "(step ifl" ) + id + subFarkasClause +
+                     "):rule la_generic :args(1 1 -1 1 -1))\n";
 
         proofRuleRes += pref + +" e" + std::to_string( identifierInt - ( _n - _m ) ) + " l" +
-                        std::to_string( identifierInt ) + " ifl" + id + " ts" + id +
-                        " eq" + identifier + "_a0 ri1_" + identifier + "))\n";
+                        std::to_string( identifierInt ) + " ifl" + id + " ts" + id + " eq" +
+                        identifier + "_a0 ri1_" + identifier + "))\n";
     }
     // If ub of b is positive, then propagate to f
     else if ( causingVar == b && causingVarBound == Tightening::UB && affectedVar == f &&
@@ -549,9 +552,11 @@ void AletheProofWriter::writeReluLemma(
                             getBoundAsClause( Tightening( affectedVar, 0, Tightening::UB ) ) + ")" +
                             conclusion;
 
-        proofRule = String( "(step taut" ) + id + " (cl (or " + tautClause + ")):rule la_tautology)\n";
+        proofRule =
+            String( "(step taut" ) + id + " (cl (or " + tautClause + ")):rule la_tautology)\n";
 
-        proofRule += String( "(step ts" ) + id + " (cl " + tautClause + "):rule or :premises(taut" + id + "))\n";
+        proofRule += String( "(step ts" ) + id + " (cl " + tautClause + "):rule or :premises(taut" +
+                     id + "))\n";
 
         String counterpartBound =
             getBoundAsClause( Tightening( identifierInt, 0, Tightening::UB ) );
@@ -560,11 +565,12 @@ void AletheProofWriter::writeReluLemma(
         String subFarkasClause = String( " (cl (not " ) + causeBound + ")" + conclusion + "(not " +
                                  subConclusion + ")(not " + counterpartBound + ")" + tableauLit;
 
-        proofRule += String( "(step ifl" ) + id + subFarkasClause + "):rule la_generic :args(1 1 -1 1 1))\n";
+        proofRule +=
+            String( "(step ifl" ) + id + subFarkasClause + "):rule la_generic :args(1 1 -1 1 1))\n";
 
         proofRuleRes += pref + " e" + std::to_string( identifierInt - ( _n - _m ) ) + " u" +
-                        std::to_string( identifierInt ) + " ifl" + id + " ts" +
-                        id + " eq" + identifier + "_a0 ri1_" + identifier + "))\n";
+                        std::to_string( identifierInt ) + " ifl" + id + " ts" + id + " eq" +
+                        identifier + "_a0 ri1_" + identifier + "))\n";
     }
 
     if ( matched )

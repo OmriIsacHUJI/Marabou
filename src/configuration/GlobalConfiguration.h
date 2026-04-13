@@ -259,8 +259,8 @@ public:
      */
     static const bool WRITE_ALETHE_PROOF;
 
-    /* Denote whether to use bounded_farkas proof rule (supported by Carara only)
-   */
+    /* Denote whether to use bounded_farkas proof rule (supported by Carcara only)
+     */
     static const bool DEDICATED_ALEHTE_RULE;
 
     /* How many layers after the current layer do we encode in backward analysis.

@@ -20,7 +20,7 @@
 #include "gmpxx.h"
 
 const unsigned SmtLibWriter::SMTLIBWRITER_PRECISION =
-        (unsigned)std::log10( 1 / GlobalConfiguration::LEMMA_CERTIFICATION_TOLERANCE );
+    (unsigned)std::log10( 1 / GlobalConfiguration::LEMMA_CERTIFICATION_TOLERANCE );
 
 List<String>
 SmtLibWriter::convertToSmtLib( unsigned numOfTableauRows,

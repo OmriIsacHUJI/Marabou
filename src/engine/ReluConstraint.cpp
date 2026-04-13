@@ -322,7 +322,15 @@ void ReluConstraint::notifyUpperBound( unsigned variable, double newBound )
                     // If b has a non-positive upper bound, f's upper bound is 0
                     if ( proofs )
                         _boundManager->addLemmaExplanationAndTightenBound(
-                                _f, 0, Tightening::UB, { variable }, Tightening::UB, *this, true, FloatUtils::max( bound, -GlobalConfiguration::LEMMA_CERTIFICATION_TOLERANCE ) );
+                            _f,
+                            0,
+                            Tightening::UB,
+                            { variable },
+                            Tightening::UB,
+                            *this,
+                            true,
+                            FloatUtils::max(
+                                bound, -GlobalConfiguration::LEMMA_CERTIFICATION_TOLERANCE ) );
                     else
                         _boundManager->tightenUpperBound( _f, 0 );
 
