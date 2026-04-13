@@ -20,7 +20,7 @@
 #include "gmpxx.h"
 
 const unsigned SmtLibWriter::SMTLIBWRITER_PRECISION =
-    (unsigned)std::log10( 1 / GlobalConfiguration::DEFAULT_EPSILON_FOR_COMPARISONS );
+        (unsigned)std::log10( 1 / GlobalConfiguration::LEMMA_CERTIFICATION_TOLERANCE );
 
 List<String>
 SmtLibWriter::convertToSmtLib( unsigned numOfTableauRows,
@@ -34,7 +34,7 @@ SmtLibWriter::convertToSmtLib( unsigned numOfTableauRows,
     List<String> instance;
 
     // Write with SmtLibWriter
-    unsigned b, f, aux;
+    unsigned b, f;
 
     SmtLibWriter::addHeader( numOfVariables, instance );
     SmtLibWriter::addGroundUpperBounds( upperBounds, instance );
@@ -67,8 +67,7 @@ SmtLibWriter::convertToSmtLib( unsigned numOfTableauRows,
         {
             b = conVars[0];
             f = conVars[1];
-            aux = conVars[2];
-            SmtLibWriter::addReLUConstraint( b, f, aux, constraint->getPhaseStatus(), instance );
+            SmtLibWriter::addReLUConstraint( b, f, constraint->getPhaseStatus(), instance );
         }
         else if ( constraint->getType() == SIGN )
         {
@@ -157,20 +156,13 @@ void SmtLibWriter::addFooter( List<String> &instance )
 
 void SmtLibWriter::addReLUConstraint( unsigned b,
                                       unsigned f,
-                                      unsigned aux,
                                       const PhaseStatus status,
                                       List<String> &instance )
 {
     if ( GlobalConfiguration::WRITE_ALETHE_PROOF || status == PHASE_NOT_FIXED )
-    {
-        instance.append( "(assert (or (and (>= x" + std::to_string( b ) + " 0.0) (<= x" +
-                         std::to_string( aux ) + " 0.0)) (and (<= x" + std::to_string( b ) +
-                         " 0.0) (<= x" + std::to_string( f ) + " 0.0))))\n" );
-        instance.append( "(assert (= (>= x" + std::to_string( b ) + " 0.0) (<= x" +
-                         std::to_string( aux ) + " 0.0)))\n" );
-        instance.append( "(assert (= (<= x" + std::to_string( b ) + " 0.0) (<= x" +
+        instance.append( "(assert (ite (>= x" + std::to_string( b ) + " 0.0) (= x" +
+                         std::to_string( b ) + " x" + std::to_string( f ) + ") (<= x" +
                          std::to_string( f ) + " 0.0)))\n" );
-    }
     else if ( status == RELU_PHASE_ACTIVE )
         instance.append( "(assert (= x" + std::to_string( f ) + " x" + std::to_string( b ) +
                          "))\n" );
@@ -184,8 +176,9 @@ void SmtLibWriter::addSignConstraint( unsigned b,
                                       List<String> &instance )
 {
     if ( status == PHASE_NOT_FIXED )
-        instance.append( "(assert (= x" + std::to_string( f ) + " (ite (>= x" +
-                         std::to_string( b ) + " 0.0) 1.0 (- 1.0))))\n" );
+        instance.append( "(assert (ite (>= x" + std::to_string( b ) + " 0.0) (= x" +
+                         std::to_string( f ) + " 1.0) (= x" + std::to_string( f ) +
+                         " (- 1.0))))\n" );
     else if ( status == SIGN_PHASE_POSITIVE )
         instance.append( "(assert (= x" + std::to_string( f ) + " 1.0))\n" );
     else if ( status == SIGN_PHASE_NEGATIVE )
@@ -198,9 +191,9 @@ void SmtLibWriter::addAbsConstraint( unsigned b,
                                      List<String> &instance )
 {
     if ( status == PHASE_NOT_FIXED )
-        instance.append( "(assert (= x" + std::to_string( f ) + " (ite (>= x" +
-                         std::to_string( b ) + " 0.0) x" + std::to_string( b ) + " (- x" +
-                         std::to_string( b ) + "))))\n" );
+        instance.append( "(assert (ite (>= x" + std::to_string( b ) + " 0.0) (= x" +
+                         std::to_string( f ) + " x" + std::to_string( b ) + ") (= x" +
+                         std::to_string( f ) + " (- x" + std::to_string( b ) + "))))\n" );
     else if ( status == ABS_PHASE_POSITIVE )
         instance.append( "(assert (= x" + std::to_string( f ) + " x" + std::to_string( b ) +
                          "))\n" );
@@ -221,7 +214,7 @@ void SmtLibWriter::addMaxConstraint( unsigned f,
 
     // f equals to some value (the value of maxVal)
     if ( status == MAX_PHASE_ELIMINATED )
-        instance.append( String( "(assert (= x" + std::to_string( f ) + " " ) +
+        instance.append( String( "(assert (= x" ) + std::to_string( f ) + " " +
                          signedValue( maxVal ) + "))\n" );
 
     // f equals to some element (maxVal is an index)
@@ -324,9 +317,10 @@ void SmtLibWriter::addLeakyReLUConstraint( unsigned b,
                                            List<String> &instance )
 {
     if ( status == PHASE_NOT_FIXED )
-        instance.append( String( "(assert (= x" + std::to_string( f ) + " (ite (>= x" +
-                                 std::to_string( b ) + " 0) x" + std::to_string( b ) + " (* " ) +
-                         signedValue( slope ) + " x" + std::to_string( b ) + "))))\n" );
+        instance.append( String( "(assert (ite (>= x" ) + std::to_string( b ) + " 0) (= x" +
+                         std::to_string( f ) + " x" + std::to_string( b ) + ") (= x" +
+                         std::to_string( f ) + " (* " + signedValue( slope ) + " x" +
+                         std::to_string( b ) + "))))\n" );
     else if ( status == RELU_PHASE_ACTIVE )
         instance.append( "(assert (= x" + std::to_string( f ) + " x" + std::to_string( b ) +
                          "))\n" );

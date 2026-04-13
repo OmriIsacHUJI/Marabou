@@ -116,6 +116,8 @@ const double GlobalConfiguration::MINIMAL_COEFFICIENT_FOR_TIGHTENING = 0.01;
 const double GlobalConfiguration::LEMMA_CERTIFICATION_TOLERANCE = 0.00000001;
 const bool GlobalConfiguration::WRITE_JSON_PROOF = false;
 const bool GlobalConfiguration::WRITE_ALETHE_PROOF = true;
+const bool GlobalConfiguration::DEDICATED_ALEHTE_RULE = true;
+
 
 const unsigned GlobalConfiguration::BACKWARD_BOUND_PROPAGATION_DEPTH = 3;
 const unsigned GlobalConfiguration::MAX_ROUNDS_OF_BACKWARD_ANALYSIS = 10;
