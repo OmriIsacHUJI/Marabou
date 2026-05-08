@@ -216,7 +216,7 @@ void AletheProofWriter::writeContradiction( const SparseUnsortedList &contradict
     farkasClause = String( "(cl " ) + farkasClause + ")";
     farkasArgs = String( "(" ) + farkasArgs + "))\n";
 
-    String ruleName = GlobalConfiguration::DEDICATED_ALEHTE_RULE ? "bounded_farkas" : "le_generic";
+    String ruleName = GlobalConfiguration::DEDICATED_ALEHTE_RULE ? "bounded_farkas" : "la_generic";
     String laGeneric = String( "(step t" + std::to_string( nodeId ) ) + " " + farkasClause +
                        ":rule " + ruleName + " :args" + farkasArgs;
 
