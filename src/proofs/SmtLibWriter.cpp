@@ -342,8 +342,7 @@ void SmtLibWriter::addTableauRow( const SparseUnsortedList &row, List<String> &i
     if ( !size )
         return;
 
-    unsigned counter = 0;
-    String assertRowLine = "(assert (= 0.0";
+    String assertRowLine = "(assert (= 0.0 (+";
     auto entry = row.begin();
 
     for ( ; entry != row.end(); ++entry )
@@ -351,10 +350,7 @@ void SmtLibWriter::addTableauRow( const SparseUnsortedList &row, List<String> &i
         if ( entry->_value == 0 )
             continue;
 
-        if ( counter != size - 1 )
-            assertRowLine += String( " (+ " );
-        else
-            assertRowLine += String( " " );
+        assertRowLine += String( " " );
         mpq_class tempVal( entry->_value );
         // Coefficients +-1 can be dropped
         if ( entry->_value == 1 )
@@ -367,14 +363,9 @@ void SmtLibWriter::addTableauRow( const SparseUnsortedList &row, List<String> &i
         else
             assertRowLine +=
                 String( "(* " ) + tempVal.get_str() + " x" + std::to_string( entry->_index ) + ")";
-
-        ++counter;
     }
 
-    for ( unsigned i = 0; i < counter + 1; ++i )
-        assertRowLine += String( ")" );
-
-    instance.append( assertRowLine + "\n" );
+    instance.append( assertRowLine + ")))\n" );
 }
 
 void SmtLibWriter::addGroundUpperBounds( const Vector<double> &bounds, List<String> &instance )
@@ -418,8 +409,6 @@ void SmtLibWriter::addEquation( const Equation &eq, List<String> &instance, bool
     if ( !size )
         return;
 
-    unsigned counter = 0;
-
     String assertRowLine = "";
 
     if ( assertEquations )
@@ -435,22 +424,13 @@ void SmtLibWriter::addEquation( const Equation &eq, List<String> &instance, bool
         assertRowLine += "(<= ";
 
     assertRowLine += signedValue( eq._scalar );
-
+    assertRowLine += String( " (+" );
     for ( const auto &addend : eq._addends )
     {
         if ( FloatUtils::isZero( addend._coefficient ) )
-        {
-            // If the last addend has coefficient zero, add 0 to close previously opened addition
-            if ( addend == eq._addends.back() )
-                assertRowLine += String( " 0)" );
             continue;
-        }
 
-        if ( !( addend == eq._addends.back() ) )
-            assertRowLine += String( " (+ " );
-        else
-            assertRowLine += String( " " );
-
+        assertRowLine += String( " " );
 
         // Coefficients +-1 can be dropped
         if ( addend._coefficient == 1 )
@@ -460,13 +440,9 @@ void SmtLibWriter::addEquation( const Equation &eq, List<String> &instance, bool
         else
             assertRowLine += String( "(* " ) + signedValue( addend._coefficient ) + " x" +
                              std::to_string( addend._variable ) + ")";
-
-        ++counter;
     }
 
-    for ( unsigned i = 0; i < counter; ++i )
-        assertRowLine += String( ")" );
-
+    assertRowLine += String( ")))" );
     instance.append( assertRowLine + ( assertEquations ? ")\n" : " " ) );
 }
 
