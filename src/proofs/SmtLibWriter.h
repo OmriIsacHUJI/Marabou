@@ -17,7 +17,6 @@
 
 #include "DisjunctionConstraint.h"
 #include "File.h"
-#include "gmpxx.h"
 #include "LeakyReluConstraint.h"
 #include "List.h"
 #include "MString.h"
@@ -25,6 +24,7 @@
 #include "PiecewiseLinearConstraint.h"
 #include "SparseUnsortedList.h"
 #include "Vector.h"
+#include "gmpxx.h"
 
 #include <iomanip>
 
