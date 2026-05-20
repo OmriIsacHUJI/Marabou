@@ -259,9 +259,13 @@ public:
      */
     static const bool WRITE_ALETHE_PROOF;
 
+    /* Add terms to allow Alethe elaboration
+    */
+    static const bool ALETHE_ELABORATE_TERMS;
+
     /* Denote whether to use bounded_farkas proof rule (supported by Carcara only)
      */
-    static const bool DEDICATED_ALEHTE_RULE;
+    static const bool DEDICATED_ALETHE_RULE;
 
     /* How many layers after the current layer do we encode in backward analysis.
      */

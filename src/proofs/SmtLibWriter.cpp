@@ -160,7 +160,7 @@ void SmtLibWriter::addReLUConstraint( unsigned b,
                                       List<String> &instance )
 {
     if ( GlobalConfiguration::WRITE_ALETHE_PROOF || status == PHASE_NOT_FIXED )
-        instance.append( "(assert (ite (>= x" + std::to_string( b ) + " 0.0) (= x" +
+        instance.append( "(assert (ite (<= 0.0 x" + std::to_string( b ) + ") (= x" +
                          std::to_string( b ) + " x" + std::to_string( f ) + ") (<= x" +
                          std::to_string( f ) + " 0.0)))\n" );
     else if ( status == RELU_PHASE_ACTIVE )
@@ -372,16 +372,28 @@ void SmtLibWriter::addGroundUpperBounds( const Vector<double> &bounds, List<Stri
 {
     unsigned n = bounds.size();
     for ( unsigned i = 0; i < n; ++i )
+    {
+        mpq_class bound( bounds[i] );
+        String boundString =  bound.get_str();
+        boundString = bound.get_den().get_str() == "1" ? boundString + ".0" : boundString;
+
         instance.append( String( "(assert (<= x" + std::to_string( i ) ) + String( " " ) +
-                         signedValue( bounds[i] ) + "))\n" );
+                       boundString + "))\n" );
+    }
 }
 
 void SmtLibWriter::addGroundLowerBounds( const Vector<double> &bounds, List<String> &instance )
 {
     unsigned n = bounds.size();
     for ( unsigned i = 0; i < n; ++i )
+    {
+        mpq_class bound( bounds[i] );
+        String boundString =  bound.get_str();
+        boundString = bound.get_den().get_str() == "1" ? boundString + ".0" : boundString;
+
         instance.append( String( "(assert (>= x" + std::to_string( i ) ) + String( " " ) +
-                         signedValue( bounds[i] ) + "))\n" );
+                                 boundString + "))\n" );
+    }
 }
 
 void SmtLibWriter::writeInstanceToFile( IFile &file, const List<String> &instance )

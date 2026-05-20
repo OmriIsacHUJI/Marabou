@@ -47,7 +47,7 @@ public:
 
     void writeLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry );
 
-    void writeContradiction( const SparseUnsortedList &contradiction, unsigned nodeId );
+    void writeContradiction( const SparseUnsortedList &contradiction, UnsatCertificateNode *node );
 
     void deleteProof();
 
@@ -103,7 +103,8 @@ private:
                         String &farkasParticipants,
                         String &negatedSplitClause,
                         int explainerVar,
-                        bool isUpper );
+                        bool isUpper,
+                        UnsatCertificateNode *node );
 };
 
 #endif // __AletheProofWriter_h__

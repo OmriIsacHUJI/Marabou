@@ -3468,7 +3468,7 @@ void Engine::explainSimplexFailure()
                 sparseContradictionToAnalyse, _groundBoundManager.getCounter(), -1, true, 0 );
         if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
             _aletheWriter->writeContradiction( sparseContradictionToAnalyse,
-                                               _UNSATCertificateCurrentPointer->get()->getId() );
+                                               _UNSATCertificateCurrentPointer->get() );
     }
 }
 
