@@ -133,7 +133,7 @@ public:
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );
-        expectedLine = String( "(assert (>= x1 -1.0))");
+        expectedLine = String( "(assert (>= x1 -1.0))" );
         TS_ASSERT_EQUALS( line, expectedLine );
 
         // Tableau

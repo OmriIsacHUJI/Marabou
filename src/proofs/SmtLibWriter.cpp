@@ -12,11 +12,10 @@
  ** [[ Add lengthier description here ]]
  **/
 
-#include "SmtLibWriter.h"
-
 #include "DisjunctionConstraint.h"
 #include "LeakyReluConstraint.h"
 #include "MaxConstraint.h"
+#include "SmtLibWriter.h"
 #include "gmpxx.h"
 
 const unsigned SmtLibWriter::SMTLIBWRITER_PRECISION =
@@ -345,7 +344,7 @@ void SmtLibWriter::addTableauRow( const SparseUnsortedList &row, List<String> &i
     String assertRowLine = "(assert (= 0.0 ";
 
     if ( row.getSize() > 1 )
-        assertRowLine+= "(+";
+        assertRowLine += "(+";
 
     auto entry = row.begin();
 
@@ -370,7 +369,7 @@ void SmtLibWriter::addTableauRow( const SparseUnsortedList &row, List<String> &i
     }
 
     if ( row.getSize() > 1 )
-        assertRowLine+= ")";
+        assertRowLine += ")";
 
     instance.append( assertRowLine + "))\n" );
 }
@@ -381,11 +380,11 @@ void SmtLibWriter::addGroundUpperBounds( const Vector<double> &bounds, List<Stri
     for ( unsigned i = 0; i < n; ++i )
     {
         mpq_class bound( bounds[i] );
-        String boundString =  bound.get_str();
+        String boundString = bound.get_str();
         boundString = bound.get_den().get_str() == "1" ? boundString + ".0" : boundString;
 
         instance.append( String( "(assert (<= x" + std::to_string( i ) ) + String( " " ) +
-                       boundString + "))\n" );
+                         boundString + "))\n" );
     }
 }
 
@@ -395,11 +394,11 @@ void SmtLibWriter::addGroundLowerBounds( const Vector<double> &bounds, List<Stri
     for ( unsigned i = 0; i < n; ++i )
     {
         mpq_class bound( bounds[i] );
-        String boundString =  bound.get_str();
+        String boundString = bound.get_str();
         boundString = bound.get_den().get_str() == "1" ? boundString + ".0" : boundString;
 
         instance.append( String( "(assert (>= x" + std::to_string( i ) ) + String( " " ) +
-                                 boundString + "))\n" );
+                         boundString + "))\n" );
     }
 }
 
@@ -426,7 +425,7 @@ void SmtLibWriter::addEquation( const Equation &eq, List<String> &instance, bool
     // Count only nonzero elements
     unsigned size = 0;
     for ( const auto &addend : eq._addends )
-        if (  addend._coefficient != 0 )
+        if ( addend._coefficient != 0 )
             ++size;
 
     if ( !size )
