@@ -15,9 +15,12 @@
 #ifndef __SmtLibWriter_h__
 #define __SmtLibWriter_h__
 
+#include "DisjunctionConstraint.h"
 #include "File.h"
+#include "LeakyReluConstraint.h"
 #include "List.h"
 #include "MString.h"
+#include "MaxConstraint.h"
 #include "PiecewiseLinearConstraint.h"
 #include "SparseUnsortedList.h"
 #include "Vector.h"

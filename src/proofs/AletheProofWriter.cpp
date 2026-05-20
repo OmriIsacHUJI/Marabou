@@ -101,11 +101,9 @@ void AletheProofWriter::writeBoundAssumptions()
 
         mpq_class upperBound( std::get<1>( _currentUpperBounds[i].top() ) );
         mpq_class lowerBound( std::get<1>( _currentLowerBounds[i].top() ) );
-        String upperBoundString = upperBound.get_den().get_str() == "1"
-                                      ? upperBound.get_str() + ".0"
+        String upperBoundString = upperBound.get_den().get_str() == "1" ? upperBound.get_str() + ".0"
                                       : upperBound.get_str();
-        String lowerBoundString = lowerBound.get_den().get_str() == "1"
-                                      ? lowerBound.get_str() + ".0"
+        String lowerBoundString = lowerBound.get_den().get_str() == "1" ? lowerBound.get_str() + ".0"
                                       : lowerBound.get_str();
 
         String s = std::to_string( i );
@@ -704,8 +702,7 @@ void AletheProofWriter::farkasStrings( const SparseUnsortedList &expl,
         bool isLemmaIncluded = lemId >= 0 && gbEntry->lemma->getToCheck();
         bool useSplitBound = ( lemId < 0 && gbEntry->isPhaseFixing );
 
-        String ineqString = useEntryUpperBound
-                                ? String( "(not (<= x" + std::to_string( i ) + " " ) +
+        String ineqString = useEntryUpperBound ? String( "(not (<= x" + std::to_string( i ) + " " ) +
                                       SmtLibWriter::signedValue( bound ) + ")) "
                                 : String( "(not (<= " ) + SmtLibWriter::signedValue( bound ) +
                                       " x" + std::to_string( i ) + ")) ";
