@@ -13,7 +13,6 @@
  **/
 
 #include "SmtLibWriter.h"
-#include "gmpxx.h"
 
 const unsigned SmtLibWriter::SMTLIBWRITER_PRECISION =
     (unsigned)std::log10( 1 / GlobalConfiguration::LEMMA_CERTIFICATION_TOLERANCE );
