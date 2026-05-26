@@ -4,7 +4,7 @@
  ** Top contributors (to current version):
  **   Omri Isac, Guy Katz
  ** This file is part of the Marabou project.
- ** Copyright (c) 2017-2025 by the authors listed in the file AUTHORS
+ ** Copyright (c) 2017-2026 by the authors listed in the file AUTHORS
  ** in the top-level source directory) and their institutional affiliations.
  ** All rights reserved. See the file COPYING in the top-level source
  ** directory for licensing information.\endverbatim
@@ -21,6 +21,8 @@ AletheProofWriter::AletheProofWriter( unsigned explanationSize,
                                       const SparseMatrix *tableau,
                                       const List<PiecewiseLinearConstraint *> &problemConstraints )
     : _initialTableau( tableau )
+    , _initialUpperBounds( upperBounds )
+    , _initialLowerBounds( lowerBounds )
     , _groundBoundManager( groundBoundManager )
     , _plc( problemConstraints.begin(), problemConstraints.end() )
     , _n( upperBounds.size() )
@@ -30,15 +32,6 @@ AletheProofWriter::AletheProofWriter( unsigned explanationSize,
     , _idToSplits()
     , _nodeToSplits()
 {
-    for ( unsigned i = 0; i < _n; ++i )
-    {
-        _currentLowerBounds.append( Stack<std::tuple<int, double>>() );
-        _currentUpperBounds.append( Stack<std::tuple<int, double>>() );
-
-        _currentLowerBounds[i].push( std::tuple<int, double>( 0, lowerBounds[i] ) );
-        _currentUpperBounds[i].push( std::tuple<int, double>( 0, upperBounds[i] ) );
-    }
-
     for ( const auto &plc : problemConstraints )
     {
         for ( const auto var : plc->getParticipatingVariables() )
@@ -54,16 +47,13 @@ AletheProofWriter::AletheProofWriter( unsigned explanationSize,
 void AletheProofWriter::writeTableauAssumptions()
 {
     ASSERT( _assumptions.empty() );
-    Vector<double> ubs;
-    Vector<double> lbs;
-    insertCurrentBoundsToVec( true, ubs );
-    insertCurrentBoundsToVec( false, lbs );
 
+    // Import SMT assertions
     List<String> smtLib = SmtLibWriter::convertToSmtLib(
         _m,
         _n,
-        ubs,
-        lbs,
+        _initialUpperBounds,
+        _initialLowerBounds,
         _initialTableau,
         List<Equation>(),
         List<PiecewiseLinearConstraint *>( _plc.begin(), _plc.end() ) );
@@ -97,10 +87,8 @@ void AletheProofWriter::writeBoundAssumptions()
 {
     for ( unsigned i = 0; i < _n; ++i )
     {
-        ASSERT( _currentUpperBounds[i].size() == 1 );
-
-        mpq_class upperBound( std::get<1>( _currentUpperBounds[i].top() ) );
-        mpq_class lowerBound( std::get<1>( _currentLowerBounds[i].top() ) );
+        mpq_class upperBound( _initialUpperBounds[i] );
+        mpq_class lowerBound( _initialLowerBounds[i] );
 
         String upperBoundString;
         if ( upperBound.get_den().get_str() == "1" )
@@ -222,6 +210,8 @@ void AletheProofWriter::writeContradiction( const SparseUnsortedList &contradict
     String farkasParticipants = "";
     String negatedSplitsClause = "";
     unsigned nodeId = node->getId();
+
+    // Collect all Farkas lemma information
     farkasStrings( contradiction,
                    _groundBoundManager.getCounter(),
                    farkasArgs,
@@ -235,6 +225,7 @@ void AletheProofWriter::writeContradiction( const SparseUnsortedList &contradict
     farkasClause = String( "(cl " ) + farkasClause + ")";
     farkasArgs = String( "(" ) + farkasArgs + "))\n";
 
+    // Write la_generic\bounded_farkas rule, followed by the corresponding resolution
     String ruleName = GlobalConfiguration::DEDICATED_ALETHE_RULE ? "bounded_farkas" : "la_generic";
     String laGeneric = String( "(step t" + std::to_string( nodeId ) ) + " " + farkasClause +
                        ":rule " + ruleName + " :args" + farkasArgs;
@@ -249,25 +240,18 @@ void AletheProofWriter::writeContradiction( const SparseUnsortedList &contradict
 void AletheProofWriter::writeInstanceToFile( IFile &file )
 {
     file.open( File::MODE_WRITE_TRUNCATE );
+
+    // Gather and write all assumptions
     writeBoundAssumptions();
     writePLCAssumption();
     for ( const String &s : _assumptions )
         file.write( s );
 
+    // Write whole proof
     for ( const String &s : _proof )
         file.write( s );
 
     file.close();
-}
-
-void AletheProofWriter::insertCurrentBoundsToVec( bool isUpper, Vector<double> &boundsVec )
-{
-    Vector<Stack<std::tuple<int, double>>> &temp =
-        isUpper ? _currentUpperBounds : _currentLowerBounds;
-
-    boundsVec = Vector<double>( _n, 0 );
-    for ( unsigned i = 0; i < _n; ++i )
-        boundsVec[i] = std::get<1>( temp[i].top() );
 }
 
 void AletheProofWriter::writeChildrenConclusion( const UnsatCertificateNode *node )
@@ -275,6 +259,7 @@ void AletheProofWriter::writeChildrenConclusion( const UnsatCertificateNode *nod
     if ( !node->isValidNonLeaf() )
         return;
 
+    // Collect children information
     List<unsigned> childrenIndices = {};
     for ( const auto &child : node->getChildren() )
         childrenIndices.append( child->getId() );
@@ -290,6 +275,7 @@ void AletheProofWriter::writeChildrenConclusion( const UnsatCertificateNode *nod
     Set<int> phaseIdentifiers = {};
     List<PiecewiseLinearCaseSplit> splitDeps = {};
 
+    // Detect which child corresponds to which phase
     for ( const auto &tightening : tighteningDeps )
     {
         if ( firstChildSplit.getBoundTightenings().exists( tightening ) ||
@@ -308,6 +294,7 @@ void AletheProofWriter::writeChildrenConclusion( const UnsatCertificateNode *nod
         }
     }
 
+    // Collect the underlying clause from the splits used in the derivation (subset of the node's path)
     for ( const auto phase : phaseIdentifiers )
     {
         if ( !phaseIdentifiers.exists( -phase ) )
@@ -329,6 +316,8 @@ void AletheProofWriter::writeChildrenConclusion( const UnsatCertificateNode *nod
 
     ASSERT( node->isValidNonLeaf() );
     ASSERT( childrenIndices.size() == 2 )
+
+    // Write resolution
     String resLine = String( "(step r" + std::to_string( node->getId() ) + " (cl " ) +
                      getNegatedSplitsClause( splitDeps ) + "):rule resolution :premises(r" +
                      std::to_string( childrenIndices.front() ) + " r" +
@@ -405,6 +394,8 @@ void AletheProofWriter::writeReluLemma(
     const ReluConstraint *relu )
 {
     ASSERT( lemmaEntry->lemma && lemmaEntry->lemma->getConstraintType() == RELU );
+
+    // Collect lemma and Relu information
     const std::shared_ptr<PLCLemma> lemma = lemmaEntry->lemma;
 
     unsigned causingVar = lemma->getCausingVars().front();
@@ -425,6 +416,7 @@ void AletheProofWriter::writeReluLemma(
     String negatedSplitClause = "";
     String causeBound = getBoundAsClause( Tightening( causingVar, targetBound, causingVarBound ) );
 
+    // Apply calculations of the Farkas lemma, to prove the causing bound
     farkasStrings( explanations.front(),
                    lemmaEntry->id,
                    farkasArgs,
@@ -438,6 +430,7 @@ void AletheProofWriter::writeReluLemma(
     farkasClause = String( "(cl " ) + causeBound + farkasClause + ")";
     farkasArgs = String( "(1 " ) + farkasArgs + "))\n";
 
+    // Write la_generic\bounded_farkas for proving the causing bound, followed by a resolution step
     String ruleName = GlobalConfiguration::DEDICATED_ALETHE_RULE ? "bounded_farkas" : "la_generic";
     String laGeneric = String( "(step fl" ) + id + " " + farkasClause + ":rule " + ruleName +
                        " :args" + farkasArgs;
@@ -447,7 +440,7 @@ void AletheProofWriter::writeReluLemma(
 
 
     // Collect information for proving the derivation rule from the lemma (derive the derived bound,
-    // based on the causing bound
+    // based on the causing bound)
     unsigned b = relu->getB();
     unsigned f = relu->getF();
     unsigned aux = relu->getAux();
@@ -460,6 +453,7 @@ void AletheProofWriter::writeReluLemma(
     String proofRuleRes = "";
     String tempString = "";
 
+    // Additional steps required in some cases, for deriving a phase from a tighter bound
     if ( targetBound > 0 )
         tempString += String( "(not " ) +
                       getBoundAsClause( Tightening( causingVar, 0, Tightening::UB ) ) + ")(not " +
@@ -490,7 +484,7 @@ void AletheProofWriter::writeReluLemma(
 
     String conclusion = getBoundAsClause( Tightening( affectedVar, bound, affectedVarBound ) );
 
-    // Prepare the shared prefix, and conclude with the remaning rules based on the exact derivation
+    // Prepare the shared prefix, and conclude with the remaining rules based on the exact derivation
     // type
     String pref = String( "(step rl" ) + id + " (cl " + negatedSplitClause + conclusion +
                   "):rule resolution :premises(cr" + id;
@@ -630,6 +624,7 @@ void AletheProofWriter::linearCombinationMpq( const std::vector<mpq_t> &explaine
         _initialTableau->getRow( entry._index, &tableauRow );
         for ( const auto &tableauEntry : tableauRow )
         {
+            // Add ci * xi to the explained row in the ith index
             if ( tableauEntry._value != 0 )
             {
                 mpq_t tempval, tempEntry, tempTableauEntry;
@@ -681,6 +676,7 @@ void AletheProofWriter::farkasStrings( const SparseUnsortedList &expl,
     farkasParticipants = "";
     List<Tightening> splitDeps;
 
+    // Deduce the participating equations and their Farkas coefficients
     for ( const auto entry : expl )
         if ( entry._value != 0 )
         {
@@ -693,6 +689,7 @@ void AletheProofWriter::farkasStrings( const SparseUnsortedList &expl,
 
     for ( unsigned i = 0; i < _n; ++i )
     {
+        // Deduce the participating bounds, either derived from lemmas, splits, or from the input
         mpq_class temp( explainedRow[i] );
         if ( mpq_sgn( explainedRow[i] ) == 0 )
             continue;
@@ -711,6 +708,8 @@ void AletheProofWriter::farkasStrings( const SparseUnsortedList &expl,
         bool useSplitBound = ( lemId < 0 && gbEntry->isPhaseFixing );
 
         String ineqString;
+
+        // Add the bound itself to the clause
         if ( useEntryUpperBound )
             ineqString = String( "(not (<= x" + std::to_string( i ) + " " ) +
                          SmtLibWriter::signedValue( bound ) + ")) ";
@@ -718,18 +717,21 @@ void AletheProofWriter::farkasStrings( const SparseUnsortedList &expl,
             ineqString = String( "(not (<= " ) + SmtLibWriter::signedValue( bound ) + " x" +
                          std::to_string( i ) + ")) ";
 
+        // Add the bound coefficient only if the generic rule is used
         if ( !GlobalConfiguration::DEDICATED_ALETHE_RULE )
             farkasArgs += temp.get_str() + " ";
 
+        // Use the bound if it is learned by a lemma, or by a split
         if ( isLemmaIncluded || useSplitBound )
             farkasClause += ineqString;
+        // If an input bound is used, then add it by its name
         else
         {
             farkasClause += String( "(not " ) + boundString + std::to_string( i ) + ") ";
             farkasParticipants += boundString + std::to_string( i ) + " ";
         }
 
-        // Add split deps of prev lemmas
+        // Add split deps of previous lemmas
         if ( isLemmaIncluded )
         {
             farkasParticipants += String( "rl" + std::to_string( lemId ) ) + " ";
@@ -737,6 +739,7 @@ void AletheProofWriter::farkasStrings( const SparseUnsortedList &expl,
                 if ( !splitDeps.exists( dep ) )
                     splitDeps.append( dep );
         }
+        // Add split deps of previous splits
         else if ( useSplitBound )
         {
             splitDeps.append( Tightening( i, bound, boundType ) );
@@ -757,14 +760,13 @@ void AletheProofWriter::farkasStrings( const SparseUnsortedList &expl,
         }
     }
 
-
     for ( const auto num : explainedRow )
         mpq_clear( num );
 
+    // Add proof terms for all splits in node path, with 0 argument for those that are not
+    // actually used Enables elaboration in Carcara
     if ( node && GlobalConfiguration::ALETHE_ELABORATE_TERMS )
     {
-        // Add proof terms for all splits in node path, with 0 argument for those that are not
-        // actually used Enables elaboration in Carcara
         List<PiecewiseLinearCaseSplit> nodePath = getPathSplits( node );
         for ( const auto &caseSplit : nodePath )
         {
@@ -794,10 +796,13 @@ void AletheProofWriter::farkasStrings( const SparseUnsortedList &expl,
     else
         _nodeToSplits.insert( -explainedVar, splitDeps );
 
+    // Compute the learned activation pattern from the bounds, and write its negation as a clause
     Set<unsigned> usedPlc = {};
     for ( const auto &tightening : splitDeps )
     {
         PiecewiseLinearConstraint *plc = _varToPlc[tightening._variable];
+
+        // Avoid repetitions
         if ( usedPlc.exists( plc->getTableauAuxVars().front() ) )
             continue;
 
@@ -851,4 +856,9 @@ void AletheProofWriter::deleteProof()
 void AletheProofWriter::setInitialTableau( const SparseMatrix *tableau )
 {
     _initialTableau = tableau;
+}
+
+const Set<PiecewiseLinearFunctionType> AletheProofWriter::getSupportedActivations()
+{
+    return { RELU };
 }

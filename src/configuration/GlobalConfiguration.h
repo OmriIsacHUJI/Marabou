@@ -257,7 +257,7 @@ public:
 
     /* Denote whether proofs should be written as a Alethe file
      */
-    static const bool WRITE_ALETHE_PROOF;
+    static bool WRITE_ALETHE_PROOF;
 
     /* Add terms to allow Alethe elaboration
      */

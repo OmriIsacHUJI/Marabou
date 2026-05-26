@@ -314,10 +314,19 @@ public:
     */
     const List<PiecewiseLinearConstraint *> *getPiecewiseLinearConstraints() const override;
 
+    /*
+     Get the Alethe proof writer object
+    */
     AletheProofWriter *getAletheWriter() const override;
 
+    /*
+     Delete the data stored in the Alethe proof
+    */
     void deleteProofIfExists() const override;
 
+    /*
+     Get the number of PLC lemmas learned so far
+    */
     unsigned getNumOfLemmas() const override;
 
 

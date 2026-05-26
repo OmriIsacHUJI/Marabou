@@ -134,7 +134,10 @@ void ReluConstraint::checkIfLowerBoundUpdateFixesPhase( unsigned variable, doubl
 
 void ReluConstraint::checkIfUpperBoundUpdateFixesPhase( unsigned variable, double bound )
 {
-    if ( ( variable == _f || variable == _b ) && FloatUtils::isNegative( bound ) )
+    // A stricter policy when proving UNSAT
+    if ( ( variable == _f || variable == _b ) &&
+        ( ( GlobalConfiguration::WRITE_ALETHE_PROOF && FloatUtils::isNegative( bound ) ) ||
+          ( !GlobalConfiguration::WRITE_ALETHE_PROOF && !FloatUtils::isPositive( bound ) ) ) )
         setPhaseStatus( RELU_PHASE_INACTIVE );
 
     if ( _auxVarInUse && variable == _aux && FloatUtils::isZero( bound ) )
@@ -168,7 +171,7 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
                 createTighteningRow();
 
             // A positive lower bound is always propagated between f and b
-            if ( ( variable == _f || variable == _b ) && FloatUtils::isPositive( bound ) )
+            if ( ( variable == _f || variable == _b ) &&  bound > 0 )
             {
                 // If we're in the active phase, aux should be 0
                 if ( proofs && _auxVarInUse )
@@ -201,7 +204,7 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
 
             // A positive lower bound for aux means we're inactive: f is 0, b is
             // non-positive When inactive, b = -aux
-            else if ( _auxVarInUse && variable == _aux && FloatUtils::isPositive( bound ) )
+            else if ( _auxVarInUse && variable == _aux && bound > 0 )
             {
                 if ( proofs )
                     _boundManager->addLemmaExplanationAndTightenBound(
@@ -221,7 +224,7 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
             }
 
             // A negative lower bound for b could tighten aux's upper bound
-            else if ( _auxVarInUse && variable == _b && FloatUtils::isNegative( bound ) )
+            else if ( _auxVarInUse && variable == _b &&  bound < 0 )
             {
                 if ( proofs )
                 {
@@ -317,7 +320,8 @@ void ReluConstraint::notifyUpperBound( unsigned variable, double newBound )
             }
             else if ( variable == _b )
             {
-                if ( FloatUtils::isNegative( bound ) )
+                if ( ( GlobalConfiguration::WRITE_ALETHE_PROOF && FloatUtils::isNegative( bound ) ) ||
+                    ( !GlobalConfiguration::WRITE_ALETHE_PROOF && !FloatUtils::isPositive( bound ) ) )
                 {
                     // If b has a non-positive upper bound, f's upper bound is 0
                     if ( proofs )

@@ -203,17 +203,17 @@ public:
     virtual const List<PiecewiseLinearConstraint *> *getPiecewiseLinearConstraints() const = 0;
 
     /*
-     Get the alethe proof writer object
+     Get the Alethe proof writer object
     */
     virtual AletheProofWriter *getAletheWriter() const = 0;
 
     /*
-     Delete the data stored as part of the alethe proof
+     Delete the data stored in the Alethe proof
     */
     virtual void deleteProofIfExists() const = 0;
 
     /*
-     Get the number of PLC lemmas
+     Get the number of PLC lemmas learned so far
     */
     virtual unsigned getNumOfLemmas() const = 0;
 };

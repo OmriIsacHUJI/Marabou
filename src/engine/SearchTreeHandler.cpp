@@ -326,12 +326,15 @@ bool SearchTreeHandler::popSplit()
         }
 
         SearchTreeStackEntry *stackEntry = _stack.back();
-        UnsatCertificateNode *certificateNode = _engine->getUNSATCertificateCurrentPointer();
-        if ( _engine->shouldProduceProofs() && certificateNode )
+        if ( _engine->shouldProduceProofs() )
         {
-            certificateNode->deleteUnusedLemmas();
-            if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
-                _engine->getAletheWriter()->writeChildrenConclusion( certificateNode );
+            UnsatCertificateNode *certificateNode = _engine->getUNSATCertificateCurrentPointer();
+            if ( certificateNode )
+            {
+                certificateNode->deleteUnusedLemmas();
+                if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+                    _engine->getAletheWriter()->writeChildrenConclusion( certificateNode );
+            }
         }
 
         popContext();

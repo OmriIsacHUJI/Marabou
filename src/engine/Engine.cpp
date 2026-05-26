@@ -1445,13 +1445,25 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
                 if ( !UNSATCertificateUtils::getSupportedActivations().exists(
                          plConstraint->getType() ) )
                 {
-                    _produceUNSATProofs = false;
                     Options::get()->setBool( Options::PRODUCE_PROOFS, false );
                     String activationType =
                         plConstraint->serializeToString().tokenize( "," ).back();
                     printf(
-                        "Turning off proof production since activation %s is not yet supported\n",
+                        "Activation %s is not yet supported in proof production\n",
                         activationType.ascii() );
+                    throw MarabouError( MarabouError::FEATURE_NOT_YET_SUPPORTED );
+                }
+                else if ( !AletheProofWriter::getSupportedActivations().exists(
+                        plConstraint->getType() ) )
+                {
+                    GlobalConfiguration::WRITE_ALETHE_PROOF = false;
+
+                    String activationType =
+                            plConstraint->serializeToString().tokenize( "," ).back();
+                    printf(
+                            "Turning off proof production in Alethe since activation %s is not yet supported." \
+                            " Falling back to produce regular proofs\n",
+                            activationType.ascii() );
                     break;
                 }
             }
@@ -1884,7 +1896,7 @@ void Engine::restoreState( const EngineState &state )
     // Reset the violation counts in the Search Tree handler
     _searchTreeHandler.resetSplitConditions();
 
-    if ( GlobalConfiguration::WRITE_ALETHE_PROOF &&
+    if ( _produceUNSATProofs && GlobalConfiguration::WRITE_ALETHE_PROOF &&
          state._tableauStateStorageLevel == TableauStateStorageLevel::STORE_ENTIRE_TABLEAU_STATE )
         _aletheWriter->setInitialTableau( _tableau->getSparseA() );
 }
@@ -3753,10 +3765,20 @@ bool Engine::certifyUNSATCertificate()
 
     if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
     {
-        String pref =
-            Options::get()->getString( Options::INPUT_FILE_PATH ).tokenize( "/" ).back() +
+        String pref;
+        if (  Options::get()->getString( Options::INPUT_FILE_PATH ).length() > 0)
+        {
+            pref = Options::get()->getString( Options::INPUT_FILE_PATH ).tokenize( "/" ).back() +
             Options::get()->getString( Options::PROPERTY_FILE_PATH ).tokenize( "/" ).back();
-        File file( pref + ".smt2.alethe" );
+
+        }
+        else
+        {
+            ASSERT(  Options::get()->getString( Options::INPUT_QUERY_FILE_PATH ).length() > 0 );
+            pref = Options::get()->getString( Options::INPUT_QUERY_FILE_PATH ).tokenize( "/" ).back();
+        }
+
+        File proofFile( pref + ".smt2.alethe" );
         SmtLibWriter::writeToSmtLibFile( pref + ".smt2",
                                          _tableau->getM(),
                                          _tableau->getN(),
@@ -3767,7 +3789,7 @@ bool Engine::certifyUNSATCertificate()
                                          _plConstraints );
 
 
-        _aletheWriter->writeInstanceToFile( file );
+        _aletheWriter->writeInstanceToFile( proofFile );
         printf( "proof written to Alethe format and needs to be certified separately\n" );
         certificationSucceeded = true;
     }
