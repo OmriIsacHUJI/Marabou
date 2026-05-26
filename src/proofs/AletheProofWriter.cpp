@@ -294,7 +294,8 @@ void AletheProofWriter::writeChildrenConclusion( const UnsatCertificateNode *nod
         }
     }
 
-    // Collect the underlying clause from the splits used in the derivation (subset of the node's path)
+    // Collect the underlying clause from the splits used in the derivation (subset of the node's
+    // path)
     for ( const auto phase : phaseIdentifiers )
     {
         if ( !phaseIdentifiers.exists( -phase ) )
@@ -484,8 +485,8 @@ void AletheProofWriter::writeReluLemma(
 
     String conclusion = getBoundAsClause( Tightening( affectedVar, bound, affectedVarBound ) );
 
-    // Prepare the shared prefix, and conclude with the remaining rules based on the exact derivation
-    // type
+    // Prepare the shared prefix, and conclude with the remaining rules based on the exact
+    // derivation type
     String pref = String( "(step rl" ) + id + " (cl " + negatedSplitClause + conclusion +
                   "):rule resolution :premises(cr" + id;
     // if the lb of b or f is positive, then ub of aux is zero

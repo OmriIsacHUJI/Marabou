@@ -79,7 +79,6 @@ public:
     void setInitialTableau( const SparseMatrix *tableau );
 
 private:
-
     /*
      Initial query information.
     */

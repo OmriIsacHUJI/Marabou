@@ -1448,20 +1448,19 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
                     Options::get()->setBool( Options::PRODUCE_PROOFS, false );
                     String activationType =
                         plConstraint->serializeToString().tokenize( "," ).back();
-                    printf(
-                        "Activation %s is not yet supported in proof production\n",
-                        activationType.ascii() );
+                    printf( "Activation %s is not yet supported in proof production\n",
+                            activationType.ascii() );
                     throw MarabouError( MarabouError::FEATURE_NOT_YET_SUPPORTED );
                 }
                 else if ( !AletheProofWriter::getSupportedActivations().exists(
-                        plConstraint->getType() ) )
+                              plConstraint->getType() ) )
                 {
                     GlobalConfiguration::WRITE_ALETHE_PROOF = false;
 
                     String activationType =
-                            plConstraint->serializeToString().tokenize( "," ).back();
-                    printf(
-                            "Turning off proof production in Alethe since activation %s is not yet supported." \
+                        plConstraint->serializeToString().tokenize( "," ).back();
+                    printf( "Turning off proof production in Alethe since activation %s is not yet "
+                            "supported."
                             " Falling back to produce regular proofs\n",
                             activationType.ascii() );
                     break;
@@ -3766,16 +3765,16 @@ bool Engine::certifyUNSATCertificate()
     if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
     {
         String pref;
-        if (  Options::get()->getString( Options::INPUT_FILE_PATH ).length() > 0)
+        if ( Options::get()->getString( Options::INPUT_FILE_PATH ).length() > 0 )
         {
             pref = Options::get()->getString( Options::INPUT_FILE_PATH ).tokenize( "/" ).back() +
-            Options::get()->getString( Options::PROPERTY_FILE_PATH ).tokenize( "/" ).back();
-
+                   Options::get()->getString( Options::PROPERTY_FILE_PATH ).tokenize( "/" ).back();
         }
         else
         {
-            ASSERT(  Options::get()->getString( Options::INPUT_QUERY_FILE_PATH ).length() > 0 );
-            pref = Options::get()->getString( Options::INPUT_QUERY_FILE_PATH ).tokenize( "/" ).back();
+            ASSERT( Options::get()->getString( Options::INPUT_QUERY_FILE_PATH ).length() > 0 );
+            pref =
+                Options::get()->getString( Options::INPUT_QUERY_FILE_PATH ).tokenize( "/" ).back();
         }
 
         File proofFile( pref + ".smt2.alethe" );
