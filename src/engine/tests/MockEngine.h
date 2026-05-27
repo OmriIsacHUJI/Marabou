@@ -308,7 +308,7 @@ public:
     {
     }
 
-    unsigned getNumOfLemmas() const
+    unsigned getNumOfLemmas() const override
     {
         return 0;
     }
