@@ -171,7 +171,7 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
                 createTighteningRow();
 
             // A positive lower bound is always propagated between f and b
-            if ( ( variable == _f || variable == _b ) && bound > 0 )
+            if ( ( variable == _f || variable == _b ) && FloatUtils::isPositive( bound ) )
             {
                 // If we're in the active phase, aux should be 0
                 if ( proofs && _auxVarInUse )
@@ -204,7 +204,7 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
 
             // A positive lower bound for aux means we're inactive: f is 0, b is
             // non-positive When inactive, b = -aux
-            else if ( _auxVarInUse && variable == _aux && bound > 0 )
+            else if ( _auxVarInUse && variable == _aux && FloatUtils::isPositive( bound ) )
             {
                 if ( proofs )
                     _boundManager->addLemmaExplanationAndTightenBound(
@@ -224,7 +224,7 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
             }
 
             // A negative lower bound for b could tighten aux's upper bound
-            else if ( _auxVarInUse && variable == _b && bound < 0 )
+            else if ( _auxVarInUse && variable == _b && FloatUtils::isNegative( bound ) )
             {
                 if ( proofs )
                 {
