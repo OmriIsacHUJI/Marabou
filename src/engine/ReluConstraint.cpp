@@ -134,10 +134,12 @@ void ReluConstraint::checkIfLowerBoundUpdateFixesPhase( unsigned variable, doubl
 
 void ReluConstraint::checkIfUpperBoundUpdateFixesPhase( unsigned variable, double bound )
 {
+    bool proofs = _boundManager->shouldProduceProofs();
+
     // A stricter policy when proving UNSAT
     if ( ( variable == _f || variable == _b ) &&
-         ( ( GlobalConfiguration::WRITE_ALETHE_PROOF && FloatUtils::isNegative( bound ) ) ||
-           ( !GlobalConfiguration::WRITE_ALETHE_PROOF && !FloatUtils::isPositive( bound ) ) ) )
+         ( ( proofs && FloatUtils::isNegative( bound ) ) ||
+           ( !proofs && !FloatUtils::isPositive( bound ) ) ) )
         setPhaseStatus( RELU_PHASE_INACTIVE );
 
     if ( _auxVarInUse && variable == _aux && FloatUtils::isZero( bound ) )
@@ -247,21 +249,8 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
 
             // Also, if for some reason we only know a negative lower bound for
             // f, we attempt to tighten it to 0
-            else if ( bound < 0 && variable == _f && !GlobalConfiguration::WRITE_ALETHE_PROOF )
-            {
-                if ( proofs )
-                    _boundManager->addLemmaExplanationAndTightenBound(
-                        _f,
-                        0,
-                        Tightening::LB,
-                        { variable },
-                        Tightening::LB,
-                        *this,
-                        false,
-                        -GlobalConfiguration::LEMMA_CERTIFICATION_TOLERANCE );
-                else
+            else if ( bound < 0 && variable == _f && !proofs )
                     _boundManager->tightenLowerBound( _f, 0 );
-            }
         }
     }
 }
@@ -320,10 +309,8 @@ void ReluConstraint::notifyUpperBound( unsigned variable, double newBound )
             }
             else if ( variable == _b )
             {
-                if ( ( GlobalConfiguration::WRITE_ALETHE_PROOF &&
-                       FloatUtils::isNegative( bound ) ) ||
-                     ( !GlobalConfiguration::WRITE_ALETHE_PROOF &&
-                       !FloatUtils::isPositive( bound ) ) )
+                if ( ( proofs && FloatUtils::isNegative( bound ) ) ||
+                     ( !proofs && !FloatUtils::isPositive( bound ) ) )
                 {
                     // If b has a non-positive upper bound, f's upper bound is 0
                     if ( proofs )
