@@ -250,7 +250,7 @@ void ReluConstraint::notifyLowerBound( unsigned variable, double newBound )
             // Also, if for some reason we only know a negative lower bound for
             // f, we attempt to tighten it to 0
             else if ( bound < 0 && variable == _f && !proofs )
-                    _boundManager->tightenLowerBound( _f, 0 );
+                _boundManager->tightenLowerBound( _f, 0 );
         }
     }
 }
