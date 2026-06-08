@@ -134,7 +134,7 @@ void ReluConstraint::checkIfLowerBoundUpdateFixesPhase( unsigned variable, doubl
 
 void ReluConstraint::checkIfUpperBoundUpdateFixesPhase( unsigned variable, double bound )
 {
-    bool proofs = _boundManager->shouldProduceProofs();
+    bool proofs = _boundManager && _boundManager->shouldProduceProofs();
 
     // A stricter policy when proving UNSAT
     if ( ( variable == _f || variable == _b ) &&
