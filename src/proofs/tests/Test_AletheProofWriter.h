@@ -12,14 +12,15 @@
  ** [[ Add lengthier description here ]]
  **/
 
+#include "AletheProofWriter.h"
+#include "CSRMatrix.h"
 #include "MockFile.h"
 #include "Query.h"
-#include "CSRMatrix.h"
-#include "AletheProofWriter.h"
 #include "context/cdlist.h"
 #include "context/context.h"
 
 #include <cxxtest/TestSuite.h>
+
 using CVC4::context::Context;
 using namespace CVC4::context;
 
