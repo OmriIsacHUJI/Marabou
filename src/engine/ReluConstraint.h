@@ -305,7 +305,6 @@ private:
      Stored in _tighteningRow
     */
     void createTighteningRow();
-
 };
 
 #endif // __ReluConstraint_h__

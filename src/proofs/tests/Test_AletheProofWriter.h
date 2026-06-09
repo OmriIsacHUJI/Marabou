@@ -23,7 +23,8 @@
 using CVC4::context::Context;
 using namespace CVC4::context;
 
-class AletheProofWriterTestSuite : public CxxTest::TestSuite {
+class AletheProofWriterTestSuite : public CxxTest::TestSuite
+{
 public:
     MockFile *file;
     Context *context;
@@ -46,11 +47,11 @@ public:
     void test_alethe_assumption_writing()
     {
         // Construct all required info.
-        Vector<double> upperBounds = { 1, 1, 1, 0 };
-        Vector<double> lowerBounds = { 0, 0, 0, 0 };
-        Vector<double> rows= { 1, 2, -1, 0,  1, -1, 1, 1};
+        Vector<double> ubs = { 1, 1, 1, 0 };
+        Vector<double> lbs = { 0, 0, 0, 0 };
+        Vector<double> rows = { 1, 2, -1, 0,  1, -1, 1, 1 };
 
-        unsigned n = upperBounds.size();
+        unsigned n = ubs.size();
         unsigned m = 2;
 
         GroundBoundManager gbm = GroundBoundManager( *context );
@@ -59,21 +60,16 @@ public:
         Query query = Query();
         query.setNumberOfVariables( n );
 
-        ReluConstraint relu = ReluConstraint(0,1 );
+        ReluConstraint relu = ReluConstraint( 0, 1 );
         relu.transformToUseAuxVariables( query );
-        relu.addTableauAuxVar(3, 2 );
+        relu.addTableauAuxVar( 3, 2 );
         List<PiecewiseLinearConstraint *> constraints = { &relu };
 
         CSRMatrix *matrix = new CSRMatrix();
-        matrix->initialize(rows.data(), m, n );
+        matrix->initialize( rows.data(), m, n );
 
-        AletheProofWriter *writer = new AletheProofWriter( m,
-                                                           upperBounds,
-                                                           lowerBounds,
-                                                           gbm,
-                                                           matrix,
-                                                           constraints );
-        writer->writeInstanceToFile( *file );
+        AletheProofWriter writer ( m, ubs, lbs, gbm, matrix, constraints );
+        writer.writeInstanceToFile( *file );
 
         String line;
         String expectedLine;
@@ -134,7 +130,6 @@ public:
             line = file->readLine( '\n' );
         }
 
-        delete writer;
         delete matrix;
     }
 };
