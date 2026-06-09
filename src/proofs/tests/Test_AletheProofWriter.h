@@ -49,7 +49,7 @@ public:
         // Construct all required info.
         Vector<double> ubs = { 1, 1, 1, 0 };
         Vector<double> lbs = { 0, 0, 0, 0 };
-        Vector<double> rows = { 1, 2, -1, 0,  1, -1, 1, 1 };
+        Vector<double> rows = { 1, 2, -1, 0, 1, -1, 1, 1 };
 
         unsigned n = ubs.size();
         unsigned m = 2;
@@ -68,7 +68,7 @@ public:
         CSRMatrix *matrix = new CSRMatrix();
         matrix->initialize( rows.data(), m, n );
 
-        AletheProofWriter writer ( m, ubs, lbs, gbm, matrix, constraints );
+        AletheProofWriter writer( m, ubs, lbs, gbm, matrix, constraints );
         writer.writeInstanceToFile( *file );
 
         String line;
