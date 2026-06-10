@@ -4035,8 +4035,8 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
         {
             Tightening::BoundType btype = ( ( linearCombination[var] > 0 ) && isUpper ) ||
                                                   ( ( linearCombination[var] < 0 ) && !isUpper )
-                                              ? Tightening::UB
-                                              : Tightening::LB;
+                                             ? Tightening::UB
+                                             : Tightening::LB;
             std::shared_ptr<GroundBoundManager::GroundBoundEntry> entry =
                 _groundBoundManager.getGroundBoundEntryUpToId( var, btype, id );
 
