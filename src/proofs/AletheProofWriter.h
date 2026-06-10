@@ -35,7 +35,7 @@ public:
                        const SparseMatrix *tableau,
                        const List<PiecewiseLinearConstraint *> &problemConstraints );
 
-    ~AletheProofWriter() override {};
+    ~AletheProofWriter() override{};
 
     /*
      Write whole proof info to a file

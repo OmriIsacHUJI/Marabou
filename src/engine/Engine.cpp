@@ -1452,7 +1452,7 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
                             activationType.ascii() );
                     throw MarabouError( MarabouError::FEATURE_NOT_YET_SUPPORTED );
                 }
-                else if ( !AletheProofWriter::getSupportedActivations().exists(
+                else if (  GlobalConfiguration::WRITE_ALETHE_PROOF && !AletheProofWriter::getSupportedActivations().exists(
                               plConstraint->getType() ) )
                 {
                     String activationType =

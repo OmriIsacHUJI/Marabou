@@ -179,7 +179,6 @@ void SearchTreeHandler::performSplit()
         ASSERT( certificateNode );
         for ( PiecewiseLinearCaseSplit &childSplit : splits )
         {
-
             new UnsatCertificateNode( certificateNode,
                                       childSplit,
                                       _constraintForSplitting->getTableauAuxVars().front(),
