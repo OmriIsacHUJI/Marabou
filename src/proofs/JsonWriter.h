@@ -87,13 +87,13 @@ public:
     static const char VARIABLES[];
 
     // Interface methods are redundant as proof is written statically in a single call
-    void writeInstanceToFile( IFile &/*file*/ ) override{};
-    void writeChildrenConclusion( const UnsatCertificateNode */*node*/ ) override{};
-    void writeDelegatedLeaf( const UnsatCertificateNode */*node*/ ) override{};
-    void
-    writeLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &/*lemmaEntry*/ ) override{};
+    void writeInstanceToFile( IFile & /*file*/ ) override{};
+    void writeChildrenConclusion( const UnsatCertificateNode * /*node*/ ) override{};
+    void writeDelegatedLeaf( const UnsatCertificateNode * /*node*/ ) override{};
+    void writeLemma(
+        const std::shared_ptr<GroundBoundManager::GroundBoundEntry> & /*lemmaEntry*/ ) override{};
     void writeContradiction( const SparseUnsortedList & /*contradiction*/,
-                                     UnsatCertificateNode */*node*/ ) override{};
+                             UnsatCertificateNode * /*node*/ ) override{};
     void deleteProof() override{};
 
 private:

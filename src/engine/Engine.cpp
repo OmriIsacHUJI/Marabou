@@ -3465,8 +3465,8 @@ void Engine::explainSimplexFailure()
             ? sparseContradictionToAnalyse.initializeToEmpty()
             : sparseContradictionToAnalyse.initialize( leafContradictionVec.data(),
                                                        leafContradictionVec.size() );
-            analyseExplanationDependencies(
-                sparseContradictionToAnalyse, _groundBoundManager.getCounter(), -1, true, 0 );
+        analyseExplanationDependencies(
+            sparseContradictionToAnalyse, _groundBoundManager.getCounter(), -1, true, 0 );
     }
 
     if ( _proofWriter )
@@ -4116,7 +4116,7 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
                 std::advance( it, 1 );
             }
 
-            if (_proofWriter )
+            if ( _proofWriter )
                 _proofWriter->writeLemma( entry );
         }
     }
