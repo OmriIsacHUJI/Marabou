@@ -43,12 +43,14 @@ public:
     /*
      Add proof steps to prove a PLC lemma
     */
-    virtual void writeLemma( const std::shared_ptr <GroundBoundManager::GroundBoundEntry> &lemmaEntry ) = 0;
+    virtual void
+    writeLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry ) = 0;
 
     /*
      Add proof steps to prove the UNSAT of a leaf
     */
-    virtual void writeContradiction( const SparseUnsortedList &contradiction, UnsatCertificateNode *node ) = 0;
+    virtual void writeContradiction( const SparseUnsortedList &contradiction,
+                                     UnsatCertificateNode *node ) = 0;
 
     /*
      Delete the content of the proof

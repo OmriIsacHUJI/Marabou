@@ -55,12 +55,14 @@ public:
     /*
       Add proof steps to prove a PLC lemma
     */
-    void writeLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry ) override;
+    void
+    writeLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry ) override;
 
     /*
      Add proof steps to prove the UNSAT of a leaf
     */
-    void writeContradiction( const SparseUnsortedList &contradiction, UnsatCertificateNode *node ) override;
+    void writeContradiction( const SparseUnsortedList &contradiction,
+                             UnsatCertificateNode *node ) override;
 
     /*
      Delete the content of the proof

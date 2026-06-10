@@ -1452,12 +1452,13 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
                             activationType.ascii() );
                     throw MarabouError( MarabouError::FEATURE_NOT_YET_SUPPORTED );
                 }
-                else if (  GlobalConfiguration::WRITE_ALETHE_PROOF && !AletheProofWriter::getSupportedActivations().exists(
+                else if ( GlobalConfiguration::WRITE_ALETHE_PROOF &&
+                          !AletheProofWriter::getSupportedActivations().exists(
                               plConstraint->getType() ) )
                 {
                     String activationType =
                         plConstraint->serializeToString().tokenize( "," ).back();
-                    printf( "Activation %s is not yet supported in proof production in Alethe\n" \
+                    printf( "Activation %s is not yet supported in proof production in Alethe\n"
                             " Change configurations for regular proof production.\n",
                             activationType.ascii() );
                     throw MarabouError( MarabouError::FEATURE_NOT_YET_SUPPORTED );
@@ -3469,7 +3470,7 @@ void Engine::explainSimplexFailure()
                 sparseContradictionToAnalyse, _groundBoundManager.getCounter(), -1, true, 0 );
         if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
             _proofWriter->writeContradiction( sparseContradictionToAnalyse,
-                                               _UNSATCertificateCurrentPointer->get() );
+                                              _UNSATCertificateCurrentPointer->get() );
     }
 }
 
@@ -4034,8 +4035,8 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
         {
             Tightening::BoundType btype = ( ( linearCombination[var] > 0 ) && isUpper ) ||
                                                   ( ( linearCombination[var] < 0 ) && !isUpper )
-                                            ? Tightening::UB
-                                            : Tightening::LB;
+                                              ? Tightening::UB
+                                              : Tightening::LB;
             std::shared_ptr<GroundBoundManager::GroundBoundEntry> entry =
                 _groundBoundManager.getGroundBoundEntryUpToId( var, btype, id );
 

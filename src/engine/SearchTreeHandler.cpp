@@ -182,7 +182,7 @@ void SearchTreeHandler::performSplit()
             new UnsatCertificateNode( certificateNode,
                                       childSplit,
                                       _constraintForSplitting->getTableauAuxVars().front(),
-                                       ++_proofNodeId );
+                                      ++_proofNodeId );
         }
     }
 
