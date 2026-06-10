@@ -112,7 +112,7 @@ Engine::~Engine()
     if ( _produceUNSATProofs && _UNSATCertificateCurrentPointer )
         _UNSATCertificateCurrentPointer->deleteSelf();
 
-    if ( GlobalConfiguration::WRITE_ALETHE_PROOF && _proofWriter )
+    if ( _proofWriter )
     {
         delete _proofWriter;
         _proofWriter = NULL;
@@ -3456,22 +3456,22 @@ void Engine::explainSimplexFailure()
 
     ( **_UNSATCertificateCurrentPointer ).makeLeaf();
 
-    if ( GlobalConfiguration::ANALYZE_PROOF_DEPENDENCIES ||
-         GlobalConfiguration::WRITE_ALETHE_PROOF )
+    SparseUnsortedList sparseContradictionToAnalyse = SparseUnsortedList();
+
+    // Proof writing requires analysis to avoid blowup
+    if ( _proofWriter || GlobalConfiguration::ANALYZE_PROOF_DEPENDENCIES )
     {
-        SparseUnsortedList sparseContradictionToAnalyse = SparseUnsortedList();
         leafContradictionVec.empty()
             ? sparseContradictionToAnalyse.initializeToEmpty()
             : sparseContradictionToAnalyse.initialize( leafContradictionVec.data(),
                                                        leafContradictionVec.size() );
-
-        if ( GlobalConfiguration::ANALYZE_PROOF_DEPENDENCIES )
             analyseExplanationDependencies(
                 sparseContradictionToAnalyse, _groundBoundManager.getCounter(), -1, true, 0 );
-        if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
-            _proofWriter->writeContradiction( sparseContradictionToAnalyse,
-                                              _UNSATCertificateCurrentPointer->get() );
     }
+
+    if ( _proofWriter )
+        _proofWriter->writeContradiction( sparseContradictionToAnalyse,
+                                          _UNSATCertificateCurrentPointer->get() );
 }
 
 bool Engine::certifyInfeasibility( unsigned var ) const
@@ -3737,7 +3737,7 @@ bool Engine::certifyUNSATCertificate()
         }
     }
     _UNSATCertificateCurrentPointer->get()->deleteUnusedLemmas();
-    if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+    if ( _proofWriter )
         _proofWriter->writeChildrenConclusion( _UNSATCertificateCurrentPointer->get() );
 
     struct timespec certificationStart = TimeUtils::sampleMicro();
@@ -3753,7 +3753,7 @@ bool Engine::certifyUNSATCertificate()
     }
     bool certificationSucceeded = false;
 
-    if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+    if ( _proofWriter )
     {
         String pref;
         if ( Options::get()->getString( Options::INPUT_FILE_PATH ).length() > 0 )
@@ -3800,7 +3800,7 @@ bool Engine::certifyUNSATCertificate()
             _statistics.getLongAttribute( Statistics::TOTAL_CERTIFICATION_TIME ) );
     }
 
-    if ( certificationSucceeded && !GlobalConfiguration::WRITE_ALETHE_PROOF )
+    if ( certificationSucceeded && !_proofWriter )
     {
         printf( "Certified\n" );
         _statistics.incUnsignedAttribute( Statistics::CERTIFIED_UNSAT );
@@ -3808,7 +3808,7 @@ bool Engine::certifyUNSATCertificate()
             printf( "Some leaves were delegated and need to be certified separately by an SMT "
                     "solver\n" );
     }
-    else if ( !GlobalConfiguration::WRITE_ALETHE_PROOF )
+    else if ( !_proofWriter )
         printf( "Error certifying UNSAT certificate\n" );
 
     DEBUG( {
@@ -3839,7 +3839,7 @@ void Engine::markLeafToDelegate()
     if ( !currentUnsatCertificateNode->getChildren().empty() )
         currentUnsatCertificateNode->makeLeaf();
 
-    if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+    if ( _proofWriter )
         _proofWriter->writeDelegatedLeaf( _UNSATCertificateCurrentPointer->get() );
 }
 
@@ -3988,7 +3988,7 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
                                             entry->lemma->getMinTargetBound() );
         }
 
-        if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+        if ( _proofWriter )
             _proofWriter->writeLemma( entry );
 
         return { entry };
@@ -4116,7 +4116,7 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
                 std::advance( it, 1 );
             }
 
-            if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+            if (_proofWriter )
                 _proofWriter->writeLemma( entry );
         }
     }
@@ -4136,6 +4136,6 @@ unsigned Engine::getNumOfLemmas() const
 
 void Engine::deleteProofIfExists() const
 {
-    if ( _produceUNSATProofs && GlobalConfiguration::WRITE_ALETHE_PROOF )
+    if ( _produceUNSATProofs && _proofWriter )
         _proofWriter->deleteProof();
 }

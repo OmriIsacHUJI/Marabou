@@ -305,7 +305,7 @@ bool SearchTreeHandler::popSplit()
                 UnsatCertificateNode *certificateNode =
                     _engine->getUNSATCertificateCurrentPointer();
                 certificateNode->deleteUnusedLemmas();
-                if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+                if ( _engine->getProofWriter() )
                     _engine->getProofWriter()->writeChildrenConclusion( certificateNode );
                 _engine->setUNSATCertificateCurrentPointer( certificateNode->getParent() );
             }
@@ -328,7 +328,7 @@ bool SearchTreeHandler::popSplit()
             if ( certificateNode )
             {
                 certificateNode->deleteUnusedLemmas();
-                if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+                if ( _engine->getProofWriter() )
                     _engine->getProofWriter()->writeChildrenConclusion( certificateNode );
             }
         }
@@ -357,7 +357,7 @@ bool SearchTreeHandler::popSplit()
             while ( !splitChild )
             {
                 certificateNode->deleteUnusedLemmas();
-                if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
+                if ( _engine->getProofWriter() )
                     _engine->getProofWriter()->writeChildrenConclusion( certificateNode );
 
                 certificateNode = certificateNode->getParent();
