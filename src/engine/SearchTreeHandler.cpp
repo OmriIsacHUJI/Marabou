@@ -179,14 +179,11 @@ void SearchTreeHandler::performSplit()
         ASSERT( certificateNode );
         for ( PiecewiseLinearCaseSplit &childSplit : splits )
         {
-            unsigned id = GlobalConfiguration::WRITE_ALETHE_PROOF
-                            ? _engine->getAletheWriter()->assignId()
-                            : 0;
 
             new UnsatCertificateNode( certificateNode,
                                       childSplit,
                                       _constraintForSplitting->getTableauAuxVars().front(),
-                                      id );
+                                       ++_proofNodeId );
         }
     }
 
@@ -310,7 +307,7 @@ bool SearchTreeHandler::popSplit()
                     _engine->getUNSATCertificateCurrentPointer();
                 certificateNode->deleteUnusedLemmas();
                 if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
-                    _engine->getAletheWriter()->writeChildrenConclusion( certificateNode );
+                    _engine->getProofWriter()->writeChildrenConclusion( certificateNode );
                 _engine->setUNSATCertificateCurrentPointer( certificateNode->getParent() );
             }
 
@@ -333,7 +330,7 @@ bool SearchTreeHandler::popSplit()
             {
                 certificateNode->deleteUnusedLemmas();
                 if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
-                    _engine->getAletheWriter()->writeChildrenConclusion( certificateNode );
+                    _engine->getProofWriter()->writeChildrenConclusion( certificateNode );
             }
         }
 
@@ -362,7 +359,7 @@ bool SearchTreeHandler::popSplit()
             {
                 certificateNode->deleteUnusedLemmas();
                 if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
-                    _engine->getAletheWriter()->writeChildrenConclusion( certificateNode );
+                    _engine->getProofWriter()->writeChildrenConclusion( certificateNode );
 
                 certificateNode = certificateNode->getParent();
                 ASSERT( certificateNode );

@@ -31,7 +31,7 @@
 #undef ERROR
 #endif
 
-class AletheProofWriter;
+class IProofWriter;
 class EngineState;
 class Equation;
 class PiecewiseLinearCaseSplit;
@@ -205,7 +205,7 @@ public:
     /*
      Get the Alethe proof writer object
     */
-    virtual AletheProofWriter *getAletheWriter() const = 0;
+    virtual IProofWriter *getProofWriter() const = 0;
 
     /*
      Delete the data stored in the Alethe proof

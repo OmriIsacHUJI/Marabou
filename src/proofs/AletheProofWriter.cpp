@@ -27,7 +27,6 @@ AletheProofWriter::AletheProofWriter( unsigned explanationSize,
     , _plc( problemConstraints.begin(), problemConstraints.end() )
     , _n( upperBounds.size() )
     , _m( explanationSize )
-    , _stepCounter( 1 )
     , _varToPlc()
     , _idToSplits()
     , _nodeToSplits()
@@ -844,19 +843,11 @@ void AletheProofWriter::writeDelegatedLeaf( const UnsatCertificateNode *node )
     _proof.append( proofHole );
 }
 
-unsigned AletheProofWriter::assignId()
-{
-    return _stepCounter++;
-}
-
 void AletheProofWriter::deleteProof()
 {
+    _tableauAssumptions.clear();
+    _assumptions.clear();
     _proof.clear();
-}
-
-void AletheProofWriter::setInitialTableau( const SparseMatrix *tableau )
-{
-    _initialTableau = tableau;
 }
 
 const Set<PiecewiseLinearFunctionType> AletheProofWriter::getSupportedActivations()

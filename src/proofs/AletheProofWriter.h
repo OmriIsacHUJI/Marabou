@@ -14,19 +14,16 @@
 #ifndef __AletheProofWriter_h__
 #define __AletheProofWriter_h__
 
-#include "GroundBoundManager.h"
-#include "PiecewiseLinearCaseSplit.h"
+#include "IProofWriter.h"
 #include "SmtLibWriter.h"
 #include "SparseMatrix.h"
-#include "SparseUnsortedList.h"
 #include "Stack.h"
-#include "UnsatCertificateNode.h"
 #include "UnsatCertificateUtils.h"
 #include "Vector.h"
 #include "gmp.h"
 #include "gmpxx.h"
 
-class AletheProofWriter
+class AletheProofWriter : public IProofWriter
 {
 public:
     static const Set<PiecewiseLinearFunctionType> getSupportedActivations();
@@ -38,45 +35,37 @@ public:
                        const SparseMatrix *tableau,
                        const List<PiecewiseLinearConstraint *> &problemConstraints );
 
+    ~AletheProofWriter() override {};
+
     /*
      Write whole proof info to a file
     */
-    void writeInstanceToFile( IFile &file );
+    void writeInstanceToFile( IFile &file ) override;
 
     /*
      Write steps to conclude UNSAT of a node from the UNSAT of its children
     */
-    void writeChildrenConclusion( const UnsatCertificateNode *node );
-
-    /*
-     Get the next unique ID to a node, and increment it
-    */
-    unsigned assignId();
+    void writeChildrenConclusion( const UnsatCertificateNode *node ) override;
 
     /*
      Write proof hole for a delegated leaf node
     */
-    void writeDelegatedLeaf( const UnsatCertificateNode *node );
+    void writeDelegatedLeaf( const UnsatCertificateNode *node ) override;
 
     /*
       Add proof steps to prove a PLC lemma
     */
-    void writeLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry );
+    void writeLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry ) override;
 
     /*
      Add proof steps to prove the UNSAT of a leaf
     */
-    void writeContradiction( const SparseUnsortedList &contradiction, UnsatCertificateNode *node );
+    void writeContradiction( const SparseUnsortedList &contradiction, UnsatCertificateNode *node ) override;
 
     /*
      Delete the content of the proof
     */
-    void deleteProof();
-
-    /*
-     Set the initial tableau constraints that define the query
-    */
-    void setInitialTableau( const SparseMatrix *tableau );
+    void deleteProof() override;
 
 private:
     /*
@@ -97,7 +86,6 @@ private:
     */
     List<String> _proof;
     List<String> _assumptions;
-    unsigned _stepCounter;
 
     /*
      Maintain maps the link between variables, PLC, nodes and their ids and splits

@@ -32,6 +32,7 @@
 #include "GurobiWrapper.h"
 #include "IEngine.h"
 #include "IQuery.h"
+#include "IProofWriter.h"
 #include "JsonWriter.h"
 #include "LPSolverType.h"
 #include "LinearExpression.h"
@@ -317,7 +318,7 @@ public:
     /*
      Get the Alethe proof writer object
     */
-    AletheProofWriter *getAletheWriter() const override;
+    IProofWriter *getProofWriter() const override;
 
     /*
      Delete the data stored in the Alethe proof
@@ -866,7 +867,7 @@ private:
     GroundBoundManager _groundBoundManager;
     UnsatCertificateNode *_UNSATCertificate;
     CVC4::context::CDO<UnsatCertificateNode *> *_UNSATCertificateCurrentPointer;
-    AletheProofWriter *_aletheWriter;
+    IProofWriter *_proofWriter;
 
     /*
       Returns true iff there is a variable with bounds that can explain infeasibility of the tableau

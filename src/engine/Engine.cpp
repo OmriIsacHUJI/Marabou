@@ -72,7 +72,7 @@ Engine::Engine()
     , _produceUNSATProofs( Options::get()->getBool( Options::PRODUCE_PROOFS ) )
     , _groundBoundManager( _context )
     , _UNSATCertificate( NULL )
-    , _aletheWriter( NULL )
+    , _proofWriter( NULL )
 {
     _searchTreeHandler.setStatistics( &_statistics );
     _tableau->setStatistics( &_statistics );
@@ -112,10 +112,10 @@ Engine::~Engine()
     if ( _produceUNSATProofs && _UNSATCertificateCurrentPointer )
         _UNSATCertificateCurrentPointer->deleteSelf();
 
-    if ( GlobalConfiguration::WRITE_ALETHE_PROOF && _aletheWriter )
+    if ( GlobalConfiguration::WRITE_ALETHE_PROOF && _proofWriter )
     {
-        delete _aletheWriter;
-        _aletheWriter = NULL;
+        delete _proofWriter;
+        _proofWriter = NULL;
     }
 }
 
@@ -1455,15 +1455,12 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
                 else if ( !AletheProofWriter::getSupportedActivations().exists(
                               plConstraint->getType() ) )
                 {
-                    GlobalConfiguration::WRITE_ALETHE_PROOF = false;
-
                     String activationType =
                         plConstraint->serializeToString().tokenize( "," ).back();
-                    printf( "Turning off proof production in Alethe since activation %s is not yet "
-                            "supported."
-                            " Falling back to produce regular proofs\n",
+                    printf( "Activation %s is not yet supported in proof production in Alethe\n" \
+                            " Change configurations for regular proof production.\n",
                             activationType.ascii() );
-                    break;
+                    throw MarabouError( MarabouError::FEATURE_NOT_YET_SUPPORTED );
                 }
             }
         }
@@ -1508,7 +1505,7 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
                 }
 
                 if ( _produceUNSATProofs && GlobalConfiguration::WRITE_ALETHE_PROOF )
-                    _aletheWriter = new AletheProofWriter(
+                    _proofWriter = new AletheProofWriter(
                         _tableau->getM(),
                         _groundBoundManager.getAllGroundBounds( Tightening::UB ),
                         _groundBoundManager.getAllGroundBounds( Tightening::LB ),
@@ -1516,11 +1513,8 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
                         _tableau->getSparseA(),
                         _plConstraints );
 
-                unsigned id =
-                    GlobalConfiguration::WRITE_ALETHE_PROOF ? _aletheWriter->assignId() : 0;
-
                 _UNSATCertificate =
-                    new UnsatCertificateNode( NULL, PiecewiseLinearCaseSplit(), 0, id );
+                    new UnsatCertificateNode( NULL, PiecewiseLinearCaseSplit(), 0, 0 );
                 _UNSATCertificateCurrentPointer->set( _UNSATCertificate );
                 _UNSATCertificate->setVisited();
             }
@@ -1894,10 +1888,6 @@ void Engine::restoreState( const EngineState &state )
 
     // Reset the violation counts in the Search Tree handler
     _searchTreeHandler.resetSplitConditions();
-
-    if ( _produceUNSATProofs && GlobalConfiguration::WRITE_ALETHE_PROOF &&
-         state._tableauStateStorageLevel == TableauStateStorageLevel::STORE_ENTIRE_TABLEAU_STATE )
-        _aletheWriter->setInitialTableau( _tableau->getSparseA() );
 }
 
 void Engine::setNumPlConstraintsDisabledByValidSplits( unsigned numConstraints )
@@ -3478,7 +3468,7 @@ void Engine::explainSimplexFailure()
             analyseExplanationDependencies(
                 sparseContradictionToAnalyse, _groundBoundManager.getCounter(), -1, true, 0 );
         if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
-            _aletheWriter->writeContradiction( sparseContradictionToAnalyse,
+            _proofWriter->writeContradiction( sparseContradictionToAnalyse,
                                                _UNSATCertificateCurrentPointer->get() );
     }
 }
@@ -3747,7 +3737,7 @@ bool Engine::certifyUNSATCertificate()
     }
     _UNSATCertificateCurrentPointer->get()->deleteUnusedLemmas();
     if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
-        _aletheWriter->writeChildrenConclusion( _UNSATCertificateCurrentPointer->get() );
+        _proofWriter->writeChildrenConclusion( _UNSATCertificateCurrentPointer->get() );
 
     struct timespec certificationStart = TimeUtils::sampleMicro();
     _precisionRestorer.restoreInitialEngineState( *this );
@@ -3788,7 +3778,7 @@ bool Engine::certifyUNSATCertificate()
                                          _plConstraints );
 
 
-        _aletheWriter->writeInstanceToFile( proofFile );
+        _proofWriter->writeInstanceToFile( proofFile );
         printf( "proof written to Alethe format and needs to be certified separately\n" );
         certificationSucceeded = true;
     }
@@ -3849,7 +3839,7 @@ void Engine::markLeafToDelegate()
         currentUnsatCertificateNode->makeLeaf();
 
     if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
-        _aletheWriter->writeDelegatedLeaf( _UNSATCertificateCurrentPointer->get() );
+        _proofWriter->writeDelegatedLeaf( _UNSATCertificateCurrentPointer->get() );
 }
 
 const Vector<double> Engine::computeContradiction( unsigned infeasibleVar ) const
@@ -3998,7 +3988,7 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
         }
 
         if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
-            _aletheWriter->writeLemma( entry );
+            _proofWriter->writeLemma( entry );
 
         return { entry };
     }
@@ -4126,16 +4116,16 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
             }
 
             if ( GlobalConfiguration::WRITE_ALETHE_PROOF )
-                _aletheWriter->writeLemma( entry );
+                _proofWriter->writeLemma( entry );
         }
     }
 
     return entries;
 }
 
-AletheProofWriter *Engine::getAletheWriter() const
+IProofWriter *Engine::getProofWriter() const
 {
-    return _aletheWriter;
+    return _proofWriter;
 }
 
 unsigned Engine::getNumOfLemmas() const
@@ -4146,5 +4136,5 @@ unsigned Engine::getNumOfLemmas() const
 void Engine::deleteProofIfExists() const
 {
     if ( _produceUNSATProofs && GlobalConfiguration::WRITE_ALETHE_PROOF )
-        _aletheWriter->deleteProof();
+        _proofWriter->deleteProof();
 }

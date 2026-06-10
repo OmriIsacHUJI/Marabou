@@ -299,7 +299,7 @@ public:
 
     void incNumOfLemmas() override{};
 
-    AletheProofWriter *getAletheWriter() const override
+    IProofWriter *getProofWriter() const override
     {
         return NULL;
     }
