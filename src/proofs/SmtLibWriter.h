@@ -22,6 +22,7 @@
 #include "MString.h"
 #include "MaxConstraint.h"
 #include "PiecewiseLinearConstraint.h"
+#include "Options.h"
 #include "SparseUnsortedList.h"
 #include "Vector.h"
 #include "gmpxx.h"
@@ -42,7 +43,7 @@ public:
     /*
       Adds a SMTLIB header to the SMTLIB instance with numberOfVariables variables
     */
-    static void addHeader( unsigned numberOfVariables, List<String> &instance );
+    static void addHeader( unsigned numberOfVariables, const List<PiecewiseLinearConstraint *> &problemConstraints, List<String> &instance );
 
     /*
       Adds a SMTLIB footer to the SMTLIB instance
@@ -104,12 +105,12 @@ public:
     /*
       Adds lines representing the ground upper bounds, in SMTLIB format, to the SMTLIB instance
     */
-    static void addGroundUpperBounds( const Vector<double> &bounds, List<String> &instance );
+    static void addGroundUpperBounds( const Vector<double> &bounds, const List<PiecewiseLinearConstraint *> &problemConstraints, List<String> &instance );
 
     /*
       Adds lines representing the ground lower bounds, in SMTLIB format, to the SMTLIB instance
     */
-    static void addGroundLowerBounds( const Vector<double> &bounds, List<String> &instance );
+    static void addGroundLowerBounds( const Vector<double> &bounds, const List<PiecewiseLinearConstraint *> &problemConstraints, List<String> &instance );
 
     /*
       Adds lines representing a tightening, in SMTLIB format, to the SMTLIB instance

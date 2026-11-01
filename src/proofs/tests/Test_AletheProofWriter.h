@@ -47,7 +47,7 @@ public:
     */
     void test_alethe_assumption_writing()
     {
-        // Construct all required info.
+        // Construct all required info, assuming additional aux vars and equations (post preprocessing)
         Vector<double> ubs = { 1, 1, 1, 0 };
         Vector<double> lbs = { 0, 0, 0, 0 };
         Vector<double> rows = { 1, 2, -1, 0, 1, -1, 1, 1 };
@@ -59,17 +59,17 @@ public:
         gbm.initialize( n );
 
         Query query = Query();
-        query.setNumberOfVariables( n );
+        // Exclude the aux vars, to be added later
+        query.setNumberOfVariables( n - 2 );
 
         ReluConstraint relu = ReluConstraint( 0, 1 );
         relu.transformToUseAuxVariables( query );
-        relu.addTableauAuxVar( 3, 2 );
-        List<PiecewiseLinearConstraint *> constraints = { &relu };
+        relu.addTableauAuxVar( query.getNewVariable(), 2 );
 
         CSRMatrix *matrix = new CSRMatrix();
         matrix->initialize( rows.data(), m, n );
 
-        AletheProofWriter writer( m, ubs, lbs, gbm, matrix, constraints );
+        AletheProofWriter writer( m, ubs, lbs, gbm, matrix, { &relu } );
         writer.writeInstanceToFile( *file );
 
         String line;
@@ -80,9 +80,7 @@ public:
         expectedLine = "(assume e0(!(= 0.0 (+ x0 (* 2.0 x1) (- x2))):named e0))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
-        line = file->readLine( '\n' );
-        expectedLine = "(assume e1(!(= 0.0 (+ x0 (- x1) x2 x3)):named e1))";
-        TS_ASSERT_EQUALS( line, expectedLine );
+        // Do not include the auxiliary equation of the relu constraint
 
         // Bound Assumptions
         line = file->readLine( '\n' );
@@ -101,25 +99,11 @@ public:
         expectedLine = "(assume l1(!(>= x1 0.0):named l1))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
-        line = file->readLine( '\n' );
-        expectedLine = "(assume u2(!(<= x2 1.0):named u2))";
-        TS_ASSERT_EQUALS( line, expectedLine );
-
-        line = file->readLine( '\n' );
-        expectedLine = "(assume l2(!(>= x2 0.0):named l2))";
-        TS_ASSERT_EQUALS( line, expectedLine );
-
-        line = file->readLine( '\n' );
-        expectedLine = "(assume u3(!(<= x3 0.0):named u3))";
-        TS_ASSERT_EQUALS( line, expectedLine );
-
-        line = file->readLine( '\n' );
-        expectedLine = "(assume l3(!(>= x3 0.0):named l3))";
-        TS_ASSERT_EQUALS( line, expectedLine );
+        // Do not include bounds for the tableau aux var (should be inferred)
 
         // Relu Assumptions
         line = file->readLine( '\n' );
-        expectedLine = "(assume relu0 (ite (!(<= 0.0 x0):named a0)(= x0 x1)(<= x1 0.0)))";
+        expectedLine = "(assume relu3 (ite (!(<= 0.0 x0):named a3)(= x0 x1)(<= x1 0.0)))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );

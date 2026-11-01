@@ -36,9 +36,9 @@ public:
         Vector<double> groundLowerBounds = { 1.0, -1.0 };
         List<String> instance;
 
-        SmtLibWriter::addHeader( 2, instance );
-        SmtLibWriter::addGroundUpperBounds( groundUpperBounds, instance );
-        SmtLibWriter::addGroundLowerBounds( groundLowerBounds, instance );
+        SmtLibWriter::addHeader( 2, {}, instance );
+        SmtLibWriter::addGroundUpperBounds( groundUpperBounds, {}, instance );
+        SmtLibWriter::addGroundLowerBounds( groundLowerBounds, {}, instance );
         SmtLibWriter::addTableauRow( sparseRow, instance );
         SmtLibWriter::addReLUConstraint( 0, 1, PHASE_NOT_FIXED, instance );
         SmtLibWriter::addSignConstraint( 0, 1, PHASE_NOT_FIXED, instance );

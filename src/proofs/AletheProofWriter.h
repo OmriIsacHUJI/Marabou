@@ -79,6 +79,7 @@ private:
     Vector<double> _initialLowerBounds;
     const GroundBoundManager &_groundBoundManager;
     Vector<PiecewiseLinearConstraint *> _plc;
+    Set<unsigned> _reluAuxVars;
 
     unsigned _n;
     unsigned _m;

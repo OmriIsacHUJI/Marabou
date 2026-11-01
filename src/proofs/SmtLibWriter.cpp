@@ -31,13 +31,18 @@ SmtLibWriter::convertToSmtLib( unsigned numOfTableauRows,
     // Write with SmtLibWriter
     unsigned b, f;
 
-    SmtLibWriter::addHeader( numOfVariables, instance );
-    SmtLibWriter::addGroundUpperBounds( upperBounds, instance );
-    SmtLibWriter::addGroundLowerBounds( lowerBounds, instance );
+    SmtLibWriter::addHeader( numOfVariables, problemConstraints, instance );
+    SmtLibWriter::addGroundUpperBounds( upperBounds, problemConstraints, instance );
+    SmtLibWriter::addGroundLowerBounds( lowerBounds, problemConstraints, instance );
 
+    // Do not write equations added from introducing aux variables to the PLCs
     auto tableauRow = SparseUnsortedList();
+    unsigned redundantEqs = 0;
+    for ( const auto &plc : problemConstraints )
+        if ( !plc->getTableauAuxVars().empty() )
+            ++redundantEqs;
 
-    for ( unsigned i = 0; i < numOfTableauRows; ++i )
+    for ( unsigned i = 0; i < numOfTableauRows - redundantEqs; ++i )
     {
         tableauRow = SparseUnsortedList();
         tableau->getRow( i, &tableauRow );
@@ -136,11 +141,25 @@ void SmtLibWriter::writeToSmtLibFile( const String &fileName,
     SmtLibWriter::writeInstanceToFile( file, instance );
 }
 
-void SmtLibWriter::addHeader( unsigned numberOfVariables, List<String> &instance )
+void SmtLibWriter::addHeader( unsigned numberOfVariables, const List<PiecewiseLinearConstraint *> &problemConstraints, List<String> &instance )
 {
+    bool aletheProofs = GlobalConfiguration::WRITE_ALETHE_PROOF && Options::get()->getBool( Options::PRODUCE_PROOFS );
+
+    // Do not include auxiliary variables, as they should be inferred
+    Set<unsigned> reluAuxVars = {};
+    unsigned redundantVars = 0;
+    if ( aletheProofs )
+        for ( const auto &plc : problemConstraints )
+        {
+            if ( plc->getType() == RELU )
+                reluAuxVars.insert( plc->getParticipatingVariables().back() );
+            redundantVars += plc->getTableauAuxVars().size();
+        }
+
     instance.append( "(set-logic QF_LRA)\n" );
-    for ( unsigned i = 0; i < numberOfVariables; ++i )
-        instance.append( "(declare-fun x" + std::to_string( i ) + " () Real)\n" );
+    for ( unsigned i = 0; i < numberOfVariables - redundantVars; ++i )
+        if ( !aletheProofs || !reluAuxVars.exists( i ) )
+            instance.append( "(declare-fun x" + std::to_string( i ) + " () Real)\n" );
 }
 
 void SmtLibWriter::addFooter( List<String> &instance )
@@ -370,11 +389,27 @@ void SmtLibWriter::addTableauRow( const SparseUnsortedList &row, List<String> &i
     instance.append( assertRowLine + "))\n" );
 }
 
-void SmtLibWriter::addGroundUpperBounds( const Vector<double> &bounds, List<String> &instance )
+void SmtLibWriter::addGroundUpperBounds( const Vector<double> &bounds, const List<PiecewiseLinearConstraint *> &problemConstraints, List<String> &instance )
 {
-    unsigned n = bounds.size();
+    bool aletheProofs = GlobalConfiguration::WRITE_ALETHE_PROOF && Options::get()->getBool( Options::PRODUCE_PROOFS );
+
+    // Do not write bounds for auxiliary variables, as they should be inferred
+    Set<unsigned> reluAuxVars = {};
+    unsigned redundantVars = 0;
+    if ( aletheProofs )
+        for ( const auto &plc : problemConstraints )
+        {
+            if ( plc->getType() == RELU )
+                reluAuxVars.insert( plc->getParticipatingVariables().back() );
+            redundantVars += plc->getTableauAuxVars().size();
+        }
+
+    unsigned n = aletheProofs ? bounds.size()  - redundantVars : bounds.size();
     for ( unsigned i = 0; i < n; ++i )
     {
+        if ( reluAuxVars.exists( i ) )
+            continue;
+
         mpq_class bound( bounds[i] );
         String boundString = bound.get_str();
         boundString = bound.get_den().get_str() == "1" ? boundString + ".0" : boundString;
@@ -384,11 +419,27 @@ void SmtLibWriter::addGroundUpperBounds( const Vector<double> &bounds, List<Stri
     }
 }
 
-void SmtLibWriter::addGroundLowerBounds( const Vector<double> &bounds, List<String> &instance )
+void SmtLibWriter::addGroundLowerBounds( const Vector<double> &bounds, const List<PiecewiseLinearConstraint *> &problemConstraints, List<String> &instance )
 {
-    unsigned n = bounds.size();
+    bool aletheProofs = GlobalConfiguration::WRITE_ALETHE_PROOF && Options::get()->getBool( Options::PRODUCE_PROOFS );
+
+    // Do not write bounds for auxiliary variables, as they should be inferred
+    Set<unsigned> reluAuxVars = {};
+    unsigned redundantVars = 0;
+    if ( aletheProofs )
+        for ( const auto &plc : problemConstraints )
+        {
+            if ( plc->getType() == RELU )
+                reluAuxVars.insert( plc->getParticipatingVariables().back() );
+            redundantVars += plc->getTableauAuxVars().size();
+        }
+
+    unsigned n = aletheProofs ? bounds.size()  - redundantVars : bounds.size();
     for ( unsigned i = 0; i < n; ++i )
     {
+        if ( reluAuxVars.exists( i ) )
+            continue;
+
         mpq_class bound( bounds[i] );
         String boundString = bound.get_str();
         boundString = bound.get_den().get_str() == "1" ? boundString + ".0" : boundString;

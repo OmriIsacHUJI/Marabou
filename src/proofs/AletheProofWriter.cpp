@@ -31,12 +31,19 @@ AletheProofWriter::AletheProofWriter( unsigned explanationSize,
     , _idToSplits()
     , _nodeToSplits()
 {
+    _reluAuxVars = {};
     for ( const auto &plc : problemConstraints )
     {
         for ( const auto var : plc->getParticipatingVariables() )
             _varToPlc.insert( var, plc );
 
         _varToPlc.insert( plc->getTableauAuxVars().front(), plc );
+
+        if ( plc->getType() == RELU )
+        {
+            _reluAuxVars.insert( plc->getParticipatingVariables().back() );
+            _reluAuxVars.insert( plc->getTableauAuxVars() );
+        }
     }
 
     // Write only necessary lines upon initialization
@@ -86,6 +93,9 @@ void AletheProofWriter::writeBoundAssumptions()
 {
     for ( unsigned i = 0; i < _n; ++i )
     {
+        if ( _reluAuxVars.exists( i ) )
+            continue;
+
         mpq_class upperBound( _initialUpperBounds[i] );
         mpq_class lowerBound( _initialLowerBounds[i] );
 
@@ -133,7 +143,6 @@ void AletheProofWriter::writePLCAssumption()
             String f = std::to_string( relu->getF() );
             String b = std::to_string( relu->getB() );
             String aux = std::to_string( relu->getAux() );
-            String counterpartAux = std::to_string( plc->getTableauAuxVars().front() );
 
             // Use common SMT representation
             String bEqualsF = String( "(= x" ) + b + " x" + f + ")";
@@ -152,29 +161,63 @@ void AletheProofWriter::writePLCAssumption()
                          " 0.0)(<= 0.0 x" + b + "))):rule la_totality)\n";
             tot += String( "(step bt" ) + constraintNum + " (cl (<= x" + b + " 0.0)(<= 0.0 x" + b +
                    ")):rule or :premises(_bt" + constraintNum + "))\n";
-
             plcSplits.append( { ite1, ite2, tot } );
+
+            // Write the lower bound of aux variable, and name it as its aux variable
+            String auxLowerBound = String( "(step auxlb1_" ) + constraintNum +
+                    " (cl (not (= x" + b + " x" + f + "))" +
+                    "(>= (- x" + f + " x" + b + ") 0.0 )):rule la_generic :args(-1 1))\n";
+            auxLowerBound += String( "(step auxlb2_" ) + constraintNum +
+                    " (cl (<= 0.0 x" + b + ")(not l" + f +")(>= (- x" +
+                    f + " x" + b + ") 0.0)):rule la_generic :args(1 -1 1))\n";
+
+            auxLowerBound += String( "(step l" ) + aux + " (cl (!(>= (!(- x" + f + " x" + b + "):named x"
+                    + aux +") 0.0):named l" + aux + ")):rule resolution :premises(ri2_" +
+                    constraintNum + " auxlb1_" + constraintNum + " auxlb2_" + constraintNum + " l" + f + "))\n";
+
+
+            // Add aux upper bound
+            // TODO compute using initial bound
+//            String numericalUb =  std::to_string( _initialUpperBounds[relu->getF()] -
+//                    _initialLowerBounds[relu->getB()]);
+//            String auxUpperBound = String( "(step auxub_" ) + constraintNum + " (cl (not u" + f + ")(not l" + b +
+//                    ")(<= x" + aux + " " + numericalUb + ")):rule la_generic :args(1 1 1))\n";
+//            auxUpperBound += String( "(step u" ) + aux + " (cl (!(>= x" + aux + " " + numericalUb + "):named u" + aux +
+//                             ")):rule resolution :premises(auxub_" + constraintNum + " u" + f + " l" + b + "))\n";
+            String auxUpperBound =  String( "(step u" ) + aux + " (cl (!(>= x" + aux + " " + std::to_string( _initialUpperBounds[relu->getAux()] ) + "):named u" + aux +
+                                                                ")):rule hole)\n";
+            plcSplits.append( {auxLowerBound, auxUpperBound} );
+
             unsigned identifierInt = relu->getTableauAuxVars().front();
             String tableauEq = "e" + std::to_string( identifierInt - ( _n - _m ) );
             String tableauLit = convertTableauAssumptionToClause( identifierInt - ( _n - _m ) );
+            String tableauEqTmp = tableauEq + "tmp";
+
+            // Infer the relu equation
+            String reluEq = String("(step pr" ) + tableauEq + "_1 (cl (<= (!(+ x" + b + " (- x" + f +") x" + aux
+                    + "):named " + tableauEqTmp + ") 0.0)):rule la_generic :args(1))\n";
+            reluEq += String("(step pr" ) + tableauEq + "_2 (cl (<= 0.0 " + tableauEqTmp + ")):rule la_generic :args(1))\n";
+            reluEq += String("(step pr" ) + tableauEq + "_3 (cl (or (!(= "+ tableauEqTmp + " 0.0):named " + tableauEq +
+                    ") (not (<= " + tableauEqTmp + " 0.0))" + "(not (<= 0.0 " + tableauEqTmp + ")))):rule la_disequality)\n";
+            reluEq += String("(step pr" ) + tableauEq + " (cl (= "+ tableauEqTmp + " 0.0)(not (<= " + tableauEqTmp + " 0.0))" + "(not (<= 0.0 " + tableauEqTmp + "))):rule or :premises (pr" + tableauEq +"_3))\n";
+            reluEq += String("(step " ) + tableauEq + " (cl " + tableauEq +"):rule resolution :premises(pr"+ tableauEq + " pr"+ tableauEq +"_1 pr"+ tableauEq + "_2))\n";
+            plcSplits.append( reluEq );
 
             // Eagerly write basic bound resolution steps used in lemmas
             // Clauses used to derive one split bound from the other (for both ReLU possible phases)
             String activeBound1 = String( "(step ab1_" ) + constraintNum + " (cl (not " + bEqualsF +
-                                  ")" + tableauLit + "(<= x" + aux + " 0.0)(not (>= x" +
-                                  counterpartAux + " 0.0))):rule la_generic :args(1 -1 1 1))\n";
+                                  ")" + tableauLit + "(<= x" + aux + " 0.0)):rule la_generic :args(1 -1 1))\n";
             activeBound1 += String( "(step eq" ) + constraintNum + "_a0" + " (cl (not (<= 0.0 x" +
                             b + "))(<= x" + aux + " 0.0)):rule resolution :premises(ab1_" +
-                            constraintNum + " ri2_" + constraintNum + " l" + counterpartAux + " " +
+                            constraintNum + " ri2_" + constraintNum + " " +
                             tableauEq + "))\n";
 
             String activeBound2 = String( "(step ab2_" ) + constraintNum + " (cl (<= 0.0 x" + b +
-                                  ")" + tableauLit + "(not (<= x" + aux + " 0.0))(not (<= x" +
-                                  counterpartAux + " 0.0))(not (>= x" + f +
-                                  " 0.0))):rule la_generic :args(1 1 1 1 -1))\n";
+                                  ")" + tableauLit + "(not (<= x" + aux + " 0.0))(not (>= x" + f +
+                                  " 0.0))):rule la_generic :args(1 1 1 -1))\n";
             activeBound2 += String( "(step eq" ) + constraintNum + "_a1" + " (cl (<= 0.0 x" + b +
                             ")(not (<= x" + aux + " 0.0))):rule resolution :premises(ab2_" +
-                            constraintNum + " " + tableauEq + " u" + counterpartAux + " l" + f +
+                            constraintNum + " " + tableauEq + " l" + f +
                             "))\n";
 
             String inactiveBound1 = String( "(step ib1_" ) + constraintNum + " (cl (not " +
@@ -562,18 +605,15 @@ void AletheProofWriter::writeReluLemma(
         proofRule += String( "(step ts" ) + id + " (cl " + tautClause + "):rule or :premises(taut" +
                      id + "))\n";
 
-        String counterpartBound =
-            getBoundAsClause( Tightening( identifierInt, 0, Tightening::LB ) );
         String subConclusion = getBoundAsClause( Tightening( f, 0, Tightening::UB ) );
         String tableauLit = convertTableauAssumptionToClause( identifierInt - ( _n - _m ) );
         String subFarkasClause = String( " (cl (not " ) + causeBound + ")" + conclusion + "(not " +
-                                 subConclusion + ")(not " + counterpartBound + ")" + tableauLit;
+                                 subConclusion + ")" + tableauLit;
 
         proofRule += String( "(step ifl" ) + id + subFarkasClause +
                      "):rule la_generic :args(1 1 -1 1 -1))\n";
 
-        proofRuleRes += pref + +" e" + std::to_string( identifierInt - ( _n - _m ) ) + " l" +
-                        std::to_string( identifierInt ) + " ifl" + id + " ts" + id + " eq" +
+        proofRuleRes += pref + +" e" + std::to_string( identifierInt - ( _n - _m ) ) + " ifl" + id + " ts" + id + " eq" +
                         identifier + "_a0 ri1_" + identifier + "))\n";
     }
     // If ub of b is positive, then propagate to f
@@ -593,18 +633,16 @@ void AletheProofWriter::writeReluLemma(
         proofRule += String( "(step ts" ) + id + " (cl " + tautClause + "):rule or :premises(taut" +
                      id + "))\n";
 
-        String counterpartBound =
-            getBoundAsClause( Tightening( identifierInt, 0, Tightening::UB ) );
+
         String subConclusion = getBoundAsClause( Tightening( aux, 0, Tightening::UB ) );
         String tableauLit = convertTableauAssumptionToClause( identifierInt - ( _n - _m ) );
         String subFarkasClause = String( " (cl (not " ) + causeBound + ")" + conclusion + "(not " +
-                                 subConclusion + ")(not " + counterpartBound + ")" + tableauLit;
+                                 subConclusion + ")" + tableauLit;
 
         proofRule +=
             String( "(step ifl" ) + id + subFarkasClause + "):rule la_generic :args(1 1 -1 1 1))\n";
 
-        proofRuleRes += pref + " e" + std::to_string( identifierInt - ( _n - _m ) ) + " u" +
-                        std::to_string( identifierInt ) + " ifl" + id + " ts" + id + " eq" +
+        proofRuleRes += pref + " e" + std::to_string( identifierInt - ( _n - _m ) ) + " ifl" + id + " ts" + id + " eq" +
                         identifier + "_a0 ri1_" + identifier + "))\n";
     }
 
@@ -675,10 +713,10 @@ void AletheProofWriter::farkasStrings( const SparseUnsortedList &expl,
     farkasArgs = "";
     farkasParticipants = "";
     List<Tightening> splitDeps;
-
+    unsigned nWithoutTableauAuxVars = _n - _plc.size();
     // Deduce the participating equations and their Farkas coefficients
     for ( const auto entry : expl )
-        if ( entry._value != 0 )
+        if ( entry._value != 0 && entryId < nWithoutTableauAuxVars )
         {
             farkasClause += String( "(not e" + std::to_string( entry._index ) ) + ")";
 
@@ -687,7 +725,7 @@ void AletheProofWriter::farkasStrings( const SparseUnsortedList &expl,
             farkasParticipants += String( "e" + std::to_string( entry._index ) ) + " ";
         }
 
-    for ( unsigned i = 0; i < _n; ++i )
+    for ( unsigned i = 0; i < nWithoutTableauAuxVars; ++i )
     {
         // Deduce the participating bounds, either derived from lemmas, splits, or from the input
         mpq_class temp( explainedRow[i] );

@@ -63,12 +63,15 @@ std::unique_ptr<Query> Preprocessor::preprocess( const IQuery &query,
 {
     _preprocessed = std::unique_ptr<Query>( query.generateQuery() );
 
+    bool aletheProofs = GlobalConfiguration::WRITE_ALETHE_PROOF && Options::get()->getBool( Options::PRODUCE_PROOFS );
+
     informConstraintsOfInitialBounds( *_preprocessed );
 
     /*
       Next, make sure all equations are of type EQUALITY. If not, turn them
       into one.
     */
+    // TODO add alethe proof
     makeAllEquationsEqualities();
 
     /*
@@ -81,13 +84,14 @@ std::unique_ptr<Query> Preprocessor::preprocess( const IQuery &query,
     /*
       Merge consecutive WS layers
     */
-    if ( !Options::get()->getBool( Options::DO_NOT_MERGE_CONSECUTIVE_WEIGHTED_SUM_LAYERS ) )
+    if ( !aletheProofs && !Options::get()->getBool( Options::DO_NOT_MERGE_CONSECUTIVE_WEIGHTED_SUM_LAYERS ) )
     {
         _preprocessed->mergeConsecutiveWeightedSumLayers(
             unhandledEquations, varsInUnhandledConstraints, _unusedSymbolicallyFixedVariables );
     }
 
-    removeRedundantAddendsInAllEquations();
+    if ( !aletheProofs )
+        removeRedundantAddendsInAllEquations();
 
     /*
       Transform the piecewise linear constraints if needed so that the case
@@ -148,19 +152,24 @@ std::unique_ptr<Query> Preprocessor::preprocess( const IQuery &query,
             for ( const auto &equation : _preprocessed->getEquations() )
                 ASSERT( !equation.containsRedundantAddends() );
         } );
+        // TODO add alethe proof
+
         continueTightening = processEquations();
         continueTightening = processConstraints() || continueTightening;
-        if ( attemptVariableElimination )
+        if ( !aletheProofs && attemptVariableElimination )
             continueTightening = processIdenticalVariables() || continueTightening;
 
         if ( _statistics )
             _statistics->incUnsignedAttribute( Statistics::PP_NUM_TIGHTENING_ITERATIONS );
     }
 
-    collectFixedValues();
-    separateMergedAndFixed();
+    if ( !aletheProofs )
+    {
+        collectFixedValues();
+        separateMergedAndFixed();
+    }
 
-    if ( attemptVariableElimination )
+    if ( !aletheProofs && attemptVariableElimination )
         eliminateVariables();
 
     /*
