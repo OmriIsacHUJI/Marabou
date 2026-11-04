@@ -31,28 +31,26 @@ SmtLibWriter::convertToSmtLib( unsigned numOfTableauRows,
     // Write with SmtLibWriter
     unsigned b, f;
 
-    SmtLibWriter::addHeader( numOfVariables, problemConstraints, instance );
-    SmtLibWriter::addGroundUpperBounds( upperBounds, problemConstraints, instance );
-    SmtLibWriter::addGroundLowerBounds( lowerBounds, problemConstraints, instance );
+    SmtLibWriter::addHeader( numOfVariables, instance );
+    SmtLibWriter::addGroundUpperBounds( upperBounds, instance );
+    SmtLibWriter::addGroundLowerBounds( lowerBounds, instance );
 
     // Do not write equations added from introducing aux variables to the PLCs
     auto tableauRow = SparseUnsortedList();
-    unsigned redundantEqs = 0;
-    for ( const auto &plc : problemConstraints )
-        if ( !plc->getTableauAuxVars().empty() )
-            ++redundantEqs;
-
-    for ( unsigned i = 0; i < numOfTableauRows - redundantEqs; ++i )
+    if ( tableau )
     {
-        tableauRow = SparseUnsortedList();
-        tableau->getRow( i, &tableauRow );
+        for ( unsigned i = 0; i < numOfTableauRows; ++i )
+        {
+            tableauRow = SparseUnsortedList();
+            tableau->getRow( i, &tableauRow );
 
-        // Fix correct size
-        if ( !tableauRow.getSize() && !tableauRow.empty() )
-            for ( auto it = tableauRow.begin(); it != tableauRow.end(); ++it )
-                tableauRow.incrementSize();
+            // Fix correct size
+            if ( !tableauRow.getSize() && !tableauRow.empty() )
+                for ( auto it = tableauRow.begin(); it != tableauRow.end(); ++it )
+                    tableauRow.incrementSize();
 
-        SmtLibWriter::addTableauRow( tableauRow, instance );
+            SmtLibWriter::addTableauRow( tableauRow, instance );
+        }
     }
 
     for ( const auto &eq : additionalEquations )
@@ -141,25 +139,11 @@ void SmtLibWriter::writeToSmtLibFile( const String &fileName,
     SmtLibWriter::writeInstanceToFile( file, instance );
 }
 
-void SmtLibWriter::addHeader( unsigned numberOfVariables, const List<PiecewiseLinearConstraint *> &problemConstraints, List<String> &instance )
+void SmtLibWriter::addHeader( unsigned numberOfVariables, List<String> &instance )
 {
-    bool aletheProofs = GlobalConfiguration::WRITE_ALETHE_PROOF && Options::get()->getBool( Options::PRODUCE_PROOFS );
-
-    // Do not include auxiliary variables, as they should be inferred
-    Set<unsigned> reluAuxVars = {};
-    unsigned redundantVars = 0;
-    if ( aletheProofs )
-        for ( const auto &plc : problemConstraints )
-        {
-            if ( plc->getType() == RELU )
-                reluAuxVars.insert( plc->getParticipatingVariables().back() );
-            redundantVars += plc->getTableauAuxVars().size();
-        }
-
     instance.append( "(set-logic QF_LRA)\n" );
-    for ( unsigned i = 0; i < numberOfVariables - redundantVars; ++i )
-        if ( !aletheProofs || !reluAuxVars.exists( i ) )
-            instance.append( "(declare-fun x" + std::to_string( i ) + " () Real)\n" );
+    for ( unsigned i = 0; i < numberOfVariables; ++i )
+        instance.append( "(declare-fun x" + std::to_string( i ) + " () Real)\n" );
 }
 
 void SmtLibWriter::addFooter( List<String> &instance )
@@ -389,27 +373,12 @@ void SmtLibWriter::addTableauRow( const SparseUnsortedList &row, List<String> &i
     instance.append( assertRowLine + "))\n" );
 }
 
-void SmtLibWriter::addGroundUpperBounds( const Vector<double> &bounds, const List<PiecewiseLinearConstraint *> &problemConstraints, List<String> &instance )
+void SmtLibWriter::addGroundUpperBounds( const Vector<double> &bounds, List<String> &instance )
 {
-    bool aletheProofs = GlobalConfiguration::WRITE_ALETHE_PROOF && Options::get()->getBool( Options::PRODUCE_PROOFS );
-
-    // Do not write bounds for auxiliary variables, as they should be inferred
-    Set<unsigned> reluAuxVars = {};
-    unsigned redundantVars = 0;
-    if ( aletheProofs )
-        for ( const auto &plc : problemConstraints )
-        {
-            if ( plc->getType() == RELU )
-                reluAuxVars.insert( plc->getParticipatingVariables().back() );
-            redundantVars += plc->getTableauAuxVars().size();
-        }
-
-    unsigned n = aletheProofs ? bounds.size()  - redundantVars : bounds.size();
-    for ( unsigned i = 0; i < n; ++i )
+    if ( bounds.empty() )
+        return;
+    for ( unsigned i = 0; i < bounds.size(); ++i )
     {
-        if ( reluAuxVars.exists( i ) )
-            continue;
-
         mpq_class bound( bounds[i] );
         String boundString = bound.get_str();
         boundString = bound.get_den().get_str() == "1" ? boundString + ".0" : boundString;
@@ -419,27 +388,13 @@ void SmtLibWriter::addGroundUpperBounds( const Vector<double> &bounds, const Lis
     }
 }
 
-void SmtLibWriter::addGroundLowerBounds( const Vector<double> &bounds, const List<PiecewiseLinearConstraint *> &problemConstraints, List<String> &instance )
+void SmtLibWriter::addGroundLowerBounds( const Vector<double> &bounds, List<String> &instance )
 {
-    bool aletheProofs = GlobalConfiguration::WRITE_ALETHE_PROOF && Options::get()->getBool( Options::PRODUCE_PROOFS );
+    if ( bounds.empty() )
+        return;
 
-    // Do not write bounds for auxiliary variables, as they should be inferred
-    Set<unsigned> reluAuxVars = {};
-    unsigned redundantVars = 0;
-    if ( aletheProofs )
-        for ( const auto &plc : problemConstraints )
-        {
-            if ( plc->getType() == RELU )
-                reluAuxVars.insert( plc->getParticipatingVariables().back() );
-            redundantVars += plc->getTableauAuxVars().size();
-        }
-
-    unsigned n = aletheProofs ? bounds.size()  - redundantVars : bounds.size();
-    for ( unsigned i = 0; i < n; ++i )
+    for ( unsigned i = 0; i < bounds.size(); ++i )
     {
-        if ( reluAuxVars.exists( i ) )
-            continue;
-
         mpq_class bound( bounds[i] );
         String boundString = bound.get_str();
         boundString = bound.get_den().get_str() == "1" ? boundString + ".0" : boundString;
@@ -492,27 +447,13 @@ void SmtLibWriter::addEquation( const Equation &eq, List<String> &instance, bool
         // Scalar should be <= than sum of addends
         assertRowLine += "(<= ";
 
-    assertRowLine += signedValue( eq._scalar );
+    mpq_class eqScalar( eq._scalar );
+    assertRowLine += eqScalar.get_str();
 
     if ( size > 1 )
         assertRowLine += String( " (+" );
 
-    for ( const auto &addend : eq._addends )
-    {
-        if ( addend._coefficient == 0 )
-            continue;
-
-        assertRowLine += String( " " );
-
-        // Coefficients +-1 can be dropped
-        if ( addend._coefficient == 1 )
-            assertRowLine += String( "x" ) + std::to_string( addend._variable );
-        else if ( addend._coefficient == -1 )
-            assertRowLine += String( "(- x" ) + std::to_string( addend._variable ) + ")";
-        else
-            assertRowLine += String( "(* " ) + signedValue( addend._coefficient ) + " x" +
-                             std::to_string( addend._variable ) + ")";
-    }
+    assertRowLine += writeEqAddends( eq._addends );
 
     assertRowLine += String( ")" );
 
@@ -520,6 +461,35 @@ void SmtLibWriter::addEquation( const Equation &eq, List<String> &instance, bool
         assertRowLine += String( ")" );
 
     instance.append( assertRowLine + ( assertEquations ? ")\n" : " " ) );
+}
+
+String SmtLibWriter::writeEqAddends( const List<Equation::Addend> &addends )
+{
+    String res = "";
+    for ( const auto &addend : addends )
+    {
+        if ( addend._coefficient == 0 )
+            continue;
+
+        res += String( " " );
+
+        // Coefficients +-1 can be dropped
+
+        mpq_class tempVal( addend._coefficient );
+        // Coefficients +-1 can be dropped
+        if ( addend._coefficient == 1 )
+            res += String( "x" ) + std::to_string( addend._variable );
+        else if ( addend._coefficient == -1 )
+            res += String( "(- x" ) + std::to_string( addend._variable ) + ")";
+        else if ( addend._coefficient == (int)addend._coefficient )
+            res += String( "(* " ) + signedValue( addend._coefficient ) + " x" +
+                             std::to_string( addend._variable ) + ")";
+        else
+            res +=
+                    String( "(* " ) + tempVal.get_str() + " x" + std::to_string( addend._variable ) + ")";
+    }
+
+    return res;
 }
 
 void SmtLibWriter::addTightening( Tightening bound, List<String> &instance )

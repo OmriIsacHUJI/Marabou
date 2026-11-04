@@ -43,7 +43,7 @@ public:
     /*
       Adds a SMTLIB header to the SMTLIB instance with numberOfVariables variables
     */
-    static void addHeader( unsigned numberOfVariables, const List<PiecewiseLinearConstraint *> &problemConstraints, List<String> &instance );
+    static void addHeader( unsigned numberOfVariables, List<String> &instance );
 
     /*
       Adds a SMTLIB footer to the SMTLIB instance
@@ -105,12 +105,12 @@ public:
     /*
       Adds lines representing the ground upper bounds, in SMTLIB format, to the SMTLIB instance
     */
-    static void addGroundUpperBounds( const Vector<double> &bounds, const List<PiecewiseLinearConstraint *> &problemConstraints, List<String> &instance );
+    static void addGroundUpperBounds( const Vector<double> &bounds,  List<String> &instance );
 
     /*
       Adds lines representing the ground lower bounds, in SMTLIB format, to the SMTLIB instance
     */
-    static void addGroundLowerBounds( const Vector<double> &bounds, const List<PiecewiseLinearConstraint *> &problemConstraints, List<String> &instance );
+    static void addGroundLowerBounds( const Vector<double> &bounds, List<String> &instance );
 
     /*
       Adds lines representing a tightening, in SMTLIB format, to the SMTLIB instance
@@ -148,6 +148,8 @@ public:
                                    const SparseMatrix *tableau,
                                    const List<Equation> &additionalEquations,
                                    const List<PiecewiseLinearConstraint *> &problemConstraints );
+
+    static String writeEqAddends( const List<Equation::Addend> &addends );
 };
 
 #endif //__SmtLibWriter_h__

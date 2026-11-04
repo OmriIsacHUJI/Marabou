@@ -73,6 +73,7 @@ Engine::Engine()
     , _groundBoundManager( _context )
     , _UNSATCertificate( NULL )
     , _proofWriter( NULL )
+    , _unprocessedEqs( {} )
 {
     _searchTreeHandler.setStatistics( &_statistics );
     _tableau->setStatistics( &_statistics );
@@ -1418,6 +1419,13 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
 
     try
     {
+        if ( _produceUNSATProofs && GlobalConfiguration::WRITE_ALETHE_PROOF )
+        {
+            std::unique_ptr<Query> temp =  std::unique_ptr<Query>( inputQuery.generateQuery() );
+            for ( const auto &eq : temp->getEquations() )
+                _unprocessedEqs.append( eq );
+        }
+
         invokePreprocessor( inputQuery, preprocess );
         if ( _verbosity > 1 )
             printInputBounds( inputQuery );
@@ -1512,6 +1520,7 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
                         _groundBoundManager.getAllGroundBounds( Tightening::LB ),
                         _groundBoundManager,
                         _tableau->getSparseA(),
+                        _unprocessedEqs,
                         _plConstraints );
 
                 _UNSATCertificate =
@@ -1568,6 +1577,8 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
         if ( !_tableau->allBoundsValid() )
         {
             // Some variable bounds are invalid, so the query is unsat
+            if ( _proofWriter )
+                _proofWriter->writeSimpleBoundContradiction( _boundManager.getInconsistentVariable() );
             throw InfeasibleQueryException();
         }
     }
@@ -3743,10 +3754,12 @@ bool Engine::certifyUNSATCertificate()
     struct timespec certificationStart = TimeUtils::sampleMicro();
     _precisionRestorer.restoreInitialEngineState( *this );
 
-    Vector<double> groundUpperBounds( _tableau->getN(), 0 );
-    Vector<double> groundLowerBounds( _tableau->getN(), 0 );
+    unsigned varsToInclude = _proofWriter ? _tableau->getN() - _tableau->getM() - _plConstraints.size() : _tableau->getN();
 
-    for ( unsigned i = 0; i < _tableau->getN(); ++i )
+    Vector<double> groundUpperBounds( varsToInclude, 0 );
+    Vector<double> groundLowerBounds( varsToInclude, 0 );
+
+    for ( unsigned i = 0; i < varsToInclude; ++i )
     {
         groundUpperBounds[i] = _preprocessedQuery->getUpperBound( i );
         groundLowerBounds[i] = _preprocessedQuery->getLowerBound( i );
@@ -3770,12 +3783,12 @@ bool Engine::certifyUNSATCertificate()
 
         File proofFile( pref + ".smt2.alethe" );
         SmtLibWriter::writeToSmtLibFile( pref + ".smt2",
-                                         _tableau->getM(),
-                                         _tableau->getN(),
+                                         _unprocessedEqs.size(),
+                                         varsToInclude,
                                          groundUpperBounds,
                                          groundLowerBounds,
-                                         _tableau->getSparseA(),
-                                         List<Equation>(),
+                                         NULL,
+                                         _unprocessedEqs,
                                          _plConstraints );
 
 

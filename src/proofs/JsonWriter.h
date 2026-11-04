@@ -95,7 +95,7 @@ public:
     void writeContradiction( const SparseUnsortedList & /*contradiction*/,
                              UnsatCertificateNode * /*node*/ ) override{};
     void deleteProof() override{};
-
+    void writeSimpleBoundContradiction( unsigned /*inconsistentVar*/ ) override{};
 private:
     /*
       Write the initial tableau to a JSON list of Strings

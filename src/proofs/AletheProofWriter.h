@@ -33,6 +33,7 @@ public:
                        const Vector<double> &lowerBounds,
                        const GroundBoundManager &groundBoundManager,
                        const SparseMatrix *tableau,
+                       const List<Equation> &unprocessedEquations,
                        const List<PiecewiseLinearConstraint *> &problemConstraints );
 
     ~AletheProofWriter() override{};
@@ -65,6 +66,11 @@ public:
                              UnsatCertificateNode *node ) override;
 
     /*
+     Add proof steps to prove the UNSAT of a simple bound contradiction
+    */
+    void writeSimpleBoundContradiction( unsigned inconsistentVar ) override;
+
+    /*
      Delete the content of the proof
     */
     void deleteProof() override;
@@ -74,12 +80,13 @@ private:
      Initial query information.
     */
     const SparseMatrix *_initialTableau;
-    Vector<String> _tableauAssumptions; // For easy access
     Vector<double> _initialUpperBounds;
     Vector<double> _initialLowerBounds;
     const GroundBoundManager &_groundBoundManager;
     Vector<PiecewiseLinearConstraint *> _plc;
     Set<unsigned> _reluAuxVars;
+    List<Equation> _unprocessedEquations;
+    unsigned _numOfInequalities;
 
     unsigned _n;
     unsigned _m;
@@ -89,6 +96,8 @@ private:
     */
     List<String> _proof;
     List<String> _assumptions;
+    List<String> _preprocessSteps;
+
 
     /*
      Maintain maps the link between variables, PLC, nodes and their ids and splits
@@ -105,6 +114,8 @@ private:
     void writePLCAssumption();
 
     void writeTableauAssumptions();
+
+    void proveEqualityWithSlackFromInequality(Equation eq, unsigned eqIndex,  unsigned auxIndex);
 
     /*
      Add proof steps for proving a lemma learned from a ReLU activation constraint.

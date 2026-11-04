@@ -53,6 +53,11 @@ public:
                                      UnsatCertificateNode *node ) = 0;
 
     /*
+     Add proof steps to prove the UNSAT of a simple bound contradiction
+    */
+    virtual void writeSimpleBoundContradiction( unsigned inconsistentVar ) = 0;
+
+    /*
      Delete the content of the proof
     */
     virtual void deleteProof() = 0;

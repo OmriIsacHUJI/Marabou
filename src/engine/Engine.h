@@ -868,6 +868,7 @@ private:
     UnsatCertificateNode *_UNSATCertificate;
     CVC4::context::CDO<UnsatCertificateNode *> *_UNSATCertificateCurrentPointer;
     IProofWriter *_proofWriter;
+    List<Equation> _unprocessedEqs;
 
     /*
       Returns true iff there is a variable with bounds that can explain infeasibility of the tableau
