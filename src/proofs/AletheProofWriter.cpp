@@ -324,12 +324,17 @@ void AletheProofWriter::writePLCAssumption()
             auxLowerBound += String( "(step auxlb2_" ) + constraintNum +
                     " (cl (<= 0.0 x" + b + ")(not l" + f +")(>= (- x" +
                     f + " x" + b + ") 0.0)):rule la_generic :args(1 -1 1))\n";
-
-            auxLowerBound += String( "(step l" ) + aux + " (cl (!(>= (!(- x" + f + " x" + b + "):named x"
+            mpq_class auxLbMpq(_initialLowerBounds[relu->getAux()] );
+            if ( auxLbMpq > 0 )
+               auxLowerBound += String( "(step l" ) + aux + " (cl (!(>= (!(- x" + f + " x" + b + "):named x"
+                + aux +")" + auxLbMpq.get_str() + "):named l" + aux + ")):rule hole )\n";
+            else
+                // TODO remove hole
+                auxLowerBound += String( "(step l" ) + aux + " (cl (!(>= (!(- x" + f + " x" + b + "):named x"
                     + aux +") 0.0):named l" + aux + ")):rule resolution :premises(ri2_" +
                     constraintNum + " auxlb1_" + constraintNum + " auxlb2_" + constraintNum + " l" + f + "))\n";
 
-            // Add aux upper bound
+//            // Add aux upper bound
             // TODO compute using initial bound
 //            String numericalUb =  std::to_string( _initialUpperBounds[relu->getF()] -
 //                    _initialLowerBounds[relu->getB()]);
@@ -337,6 +342,7 @@ void AletheProofWriter::writePLCAssumption()
 //                    ")(<= x" + aux + " " + numericalUb + ")):rule la_generic :args(1 1 1))\n";
 //            auxUpperBound += String( "(step u" ) + aux + " (cl (!(<= x" + aux + " " + numericalUb + "):named u" + aux +
 //                             ")):rule resolution :premises(auxub_" + constraintNum + " u" + f + " l" + b + "))\n";
+            // TODO remove hole
             mpq_class auxUbMpq(_initialUpperBounds[relu->getAux()] );
             String auxUpperBound =  String( "(step u" ) + aux + " (cl (!(<= x" + aux + " " + auxUbMpq.get_str() + "):named u" + aux +
                                                                 ")):rule hole)\n";
