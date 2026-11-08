@@ -1,5 +1,6 @@
 cmake_minimum_required (VERSION 3.16)
 project(Marabou)
+add_compile_options(-Wno-template-id-cdtor)
 
 set(MARABOU_VERSION 2.0.0)
 add_definitions("-DMARABOU_VERSION=\"${MARABOU_VERSION}\"")

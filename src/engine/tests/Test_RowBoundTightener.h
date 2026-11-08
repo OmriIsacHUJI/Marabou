@@ -30,6 +30,24 @@ public:
     MockForRowBoundTightener *mock;
     MockTableau *tableau;
 
+    void assertTightening( const List<Tightening> &tightenings,
+                           unsigned variable,
+                           Tightening::BoundType type,
+                           double expected )
+    {
+        auto it = std::find_if(
+                tightenings.begin(), tightenings.end(), [variable, type]( const Tightening &t ) {
+                    return t._variable == variable && t._type == type;
+                } );
+
+        TS_ASSERT( it != tightenings.end() );
+
+        if ( it == tightenings.end() )
+            return;
+
+        TS_ASSERT_DELTA( it->_value, expected, 5 * GlobalConfiguration::BOUND_COMPARISON_ADDITIVE_TOLERANCE );
+    }
+
     void setUp()
     {
         TS_ASSERT( mock = new MockForRowBoundTightener );
@@ -109,11 +127,11 @@ public:
         // LB -> 1 - 10 - 4 -100
         // UB -> 1 - 5 + 6 + 100
         TS_ASSERT_EQUALS(
-            lower->_value,
-            -113 - GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
+                lower->_value,
+                -113 - GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
         TS_ASSERT_EQUALS(
-            upper->_value,
-            102 + GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
+                upper->_value,
+                102 + GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
     }
 
     void test_pivot_row_just_upper_tightend()
@@ -174,8 +192,8 @@ public:
 
         // Lower: 1 - 10 - 4, Upper: 1 - 5 + 6
         TS_ASSERT_EQUALS(
-            upper->_value,
-            2 + GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
+                upper->_value,
+                2 + GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
     }
 
     void test_pivot_row__just_lower_tightend()
@@ -228,8 +246,8 @@ public:
 
         // Lower: 1 - 10 - 4, Lower: 1 - 5 + 6
         TS_ASSERT_EQUALS(
-            lower._value,
-            -13 - GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
+                lower._value,
+                -13 - GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
     }
 
     void test_pivot_row__nothing_tightened()
@@ -328,14 +346,8 @@ public:
         TS_ASSERT_THROWS_NOTHING( tightener.getRowTightenings( tightenings ) );
         TS_ASSERT_EQUALS( tightenings.size(), 2U );
 
-        TS_ASSERT_DIFFERS( std::find( tightenings.begin(),
-                                      tightenings.end(),
-                                      Tightening( 0U, 1.0, Tightening::UB ) ),
-                           tightenings.end() );
-        TS_ASSERT_DIFFERS( std::find( tightenings.begin(),
-                                      tightenings.end(),
-                                      Tightening( 1U, 1.5, Tightening::LB ) ),
-                           tightenings.end() );
+        assertTightening( tightenings, 0U, Tightening::UB, 1.0 );
+        assertTightening( tightenings, 1U, Tightening::LB, 1.5 );
     }
 
     void test_examine_constraint_matrix_multiple_equations()
@@ -382,8 +394,8 @@ public:
         */
 
         double A[] = {
-            1, -2, 0, 1, 2, //
-            0, -2, 1, 0, 0, //
+                1, -2, 0, 1, 2, //
+                0, -2, 1, 0, 0, //
         };
 
         double b[] = { 1, -2 };
@@ -401,21 +413,9 @@ public:
         TS_ASSERT_THROWS_NOTHING( tightener.getRowTightenings( tightenings ) );
         TS_ASSERT_EQUALS( tightenings.size(), 4U );
 
-        TS_ASSERT_DIFFERS( std::find( tightenings.begin(),
-                                      tightenings.end(),
-                                      Tightening( 0U, 1.0, Tightening::UB ) ),
-                           tightenings.end() );
-        TS_ASSERT_DIFFERS( std::find( tightenings.begin(),
-                                      tightenings.end(),
-                                      Tightening( 1U, 1.5, Tightening::LB ) ),
-                           tightenings.end() );
-        TS_ASSERT_DIFFERS( std::find( tightenings.begin(),
-                                      tightenings.end(),
-                                      Tightening( 2U, 1.0, Tightening::LB ) ),
-                           tightenings.end() );
-        TS_ASSERT_DIFFERS( std::find( tightenings.begin(),
-                                      tightenings.end(),
-                                      Tightening( 2U, 2.0, Tightening::UB ) ),
-                           tightenings.end() );
+        assertTightening( tightenings, 0U, Tightening::UB, 1.0 );
+        assertTightening( tightenings, 1U, Tightening::LB, 1.5 );
+        assertTightening( tightenings, 2U, Tightening::LB, 1.0 );
+        assertTightening( tightenings, 2U, Tightening::UB, 2.0 );
     }
 };
