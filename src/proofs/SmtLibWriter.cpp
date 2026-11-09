@@ -158,9 +158,12 @@ void SmtLibWriter::addReLUConstraint( unsigned b,
                                       List<String> &instance )
 {
     if ( GlobalConfiguration::WRITE_ALETHE_PROOF || status == PHASE_NOT_FIXED )
+    {
         instance.append( "(assert (ite (<= 0.0 x" + std::to_string( b ) + ") (= x" +
                          std::to_string( b ) + " x" + std::to_string( f ) + ") (<= x" +
                          std::to_string( f ) + " 0.0)))\n" );
+        instance.append( "(assert (>= x" + std::to_string( f ) + " 0.0))\n" );
+    }
     else if ( status == RELU_PHASE_ACTIVE )
         instance.append( "(assert (= x" + std::to_string( f ) + " x" + std::to_string( b ) +
                          "))\n" );

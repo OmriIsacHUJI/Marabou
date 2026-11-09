@@ -36,6 +36,7 @@ Preprocessor::Preprocessor()
     , _statistics( NULL )
     , _lowerBounds( NULL )
     , _upperBounds( NULL )
+    , _proofWriter( NULL )
 {
 }
 
@@ -59,11 +60,11 @@ void Preprocessor::freeMemoryIfNeeded()
 }
 
 std::unique_ptr<Query> Preprocessor::preprocess( const IQuery &query,
-                                                 bool attemptVariableElimination )
+                                                 bool attemptVariableElimination,
+                                                 AletheProofWriter *writer )
 {
     _preprocessed = std::unique_ptr<Query>( query.generateQuery() );
-
-    bool aletheProofs = GlobalConfiguration::WRITE_ALETHE_PROOF && Options::get()->getBool( Options::PRODUCE_PROOFS );
+    _proofWriter = writer;
 
     informConstraintsOfInitialBounds( *_preprocessed );
 
@@ -71,7 +72,6 @@ std::unique_ptr<Query> Preprocessor::preprocess( const IQuery &query,
       Next, make sure all equations are of type EQUALITY. If not, turn them
       into one.
     */
-    // TODO add alethe proof
     makeAllEquationsEqualities();
 
     /*
@@ -84,13 +84,13 @@ std::unique_ptr<Query> Preprocessor::preprocess( const IQuery &query,
     /*
       Merge consecutive WS layers
     */
-    if ( !aletheProofs && !Options::get()->getBool( Options::DO_NOT_MERGE_CONSECUTIVE_WEIGHTED_SUM_LAYERS ) )
+    if ( !_proofWriter && !Options::get()->getBool( Options::DO_NOT_MERGE_CONSECUTIVE_WEIGHTED_SUM_LAYERS ) )
     {
         _preprocessed->mergeConsecutiveWeightedSumLayers(
             unhandledEquations, varsInUnhandledConstraints, _unusedSymbolicallyFixedVariables );
     }
 
-    if ( !aletheProofs )
+    if ( !_proofWriter )
         removeRedundantAddendsInAllEquations();
 
     /*
@@ -98,6 +98,15 @@ std::unique_ptr<Query> Preprocessor::preprocess( const IQuery &query,
       splits can all be represented as bounds over existing variables.
     */
     transformConstraintsIfNeeded();
+    if ( _proofWriter )
+        for ( auto *plc : _preprocessed->getPiecewiseLinearConstraints() )
+        {
+            if ( plc->getType() != RELU )
+                continue;
+
+            const ReluConstraint * relu = static_cast<const ReluConstraint *>( plc );
+            _proofWriter->registerPreprocessingSlackBound( relu->getAux(), Tightening::LB );
+        }
 
     /*
       Collect input and output variables
@@ -152,24 +161,23 @@ std::unique_ptr<Query> Preprocessor::preprocess( const IQuery &query,
             for ( const auto &equation : _preprocessed->getEquations() )
                 ASSERT( !equation.containsRedundantAddends() );
         } );
-        // TODO add alethe proof
 
         continueTightening = processEquations();
         continueTightening = processConstraints() || continueTightening;
-        if ( !aletheProofs && attemptVariableElimination )
+        if ( !_proofWriter && attemptVariableElimination )
             continueTightening = processIdenticalVariables() || continueTightening;
 
         if ( _statistics )
             _statistics->incUnsignedAttribute( Statistics::PP_NUM_TIGHTENING_ITERATIONS );
     }
 
-    if ( !aletheProofs )
+    if ( !_proofWriter )
     {
         collectFixedValues();
         separateMergedAndFixed();
     }
 
-    if ( !aletheProofs && attemptVariableElimination )
+    if ( !_proofWriter && attemptVariableElimination )
         eliminateVariables();
 
     /*
@@ -246,6 +254,10 @@ void Preprocessor::makeAllEquationsEqualities()
         else
             _preprocessed->setLowerBound( auxVariable, 0 );
 
+        if ( _proofWriter )
+            _proofWriter->registerPreprocessingSlackBound( auxVariable,  equation._type == Equation::LE
+                    ? Tightening::LB: Tightening::UB );
+
         equation._type = Equation::EQ;
 
         equation.addAddend( 1, auxVariable );
@@ -265,7 +277,7 @@ bool Preprocessor::processEquations()
 
     List<Equation> &equations( _preprocessed->getEquations() );
     List<Equation>::iterator equation = equations.begin();
-
+    unsigned eqCounter = 0;
     while ( equation != equations.end() )
     {
         // The equation is of the form sum (ci * xi) - b ? 0
@@ -420,6 +432,9 @@ bool Preprocessor::processEquations()
                 if ( FloatUtils::gt( lowerBound, getLowerBound( xi ), epsilon ) )
                 {
                     tighterBoundFound = true;
+                    _proofWriter->writeEquationPreprocessingLemma( *equation,
+                                                                   "e" + std::to_string(eqCounter),
+                                                            Tightening( xi, lowerBound, Tightening::LB ) );
                     setLowerBound( xi, lowerBound );
                 }
             }
@@ -444,11 +459,14 @@ bool Preprocessor::processEquations()
                 if ( FloatUtils::lt( upperBound, getUpperBound( xi ), epsilon ) )
                 {
                     tighterBoundFound = true;
+                    _proofWriter->writeEquationPreprocessingLemma( *equation,
+                                                                   "e" + std::to_string(eqCounter),
+                                                                   Tightening( xi, upperBound, Tightening::UB ) );
                     setUpperBound( xi, upperBound );
                 }
             }
 
-            if ( FloatUtils::gt( getLowerBound( xi ),
+            if ( _proofWriter && FloatUtils::gt( getLowerBound( xi ),
                                  getUpperBound( xi ),
                                  GlobalConfiguration::PREPROCESSOR_ALMOST_FIXED_THRESHOLD ) )
             {
@@ -463,6 +481,13 @@ bool Preprocessor::processEquations()
         delete[] ciTimesLb;
         delete[] ciTimesUb;
         delete[] ciSign;
+
+        eqCounter++;
+        if ( _proofWriter )
+        {
+            ++equation;
+            continue;
+        }
 
         /*
           Next, do another sweep over the equation.
@@ -510,7 +535,7 @@ bool Preprocessor::processEquations()
 bool Preprocessor::processConstraints()
 {
     bool tighterBoundFound = false;
-
+    // TODO support proof production
     for ( auto &constraint : _preprocessed->getPiecewiseLinearConstraints() )
     {
         for ( unsigned variable : constraint->getParticipatingVariables() )
@@ -524,6 +549,9 @@ bool Preprocessor::processConstraints()
 
         for ( const auto &tightening : tightenings )
         {
+            if ( _proofWriter )
+                _proofWriter->writePreprocessingBoundHole( tightening );
+
             if ( ( tightening._type == Tightening::LB ) &&
                  ( FloatUtils::gt( tightening._value, getLowerBound( tightening._variable ) ) ) )
             {

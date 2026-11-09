@@ -28,13 +28,18 @@ class AletheProofWriter : public IProofWriter
 public:
     static const Set<PiecewiseLinearFunctionType> getSupportedActivations();
 
-    AletheProofWriter( unsigned explanationSize,
-                       const Vector<double> &upperBounds,
-                       const Vector<double> &lowerBounds,
+    AletheProofWriter( const Map<unsigned, double> &upperBounds,
+                       const Map<unsigned, double> &lowerBounds,
                        const GroundBoundManager &groundBoundManager,
-                       const SparseMatrix *tableau,
                        const List<Equation> &unprocessedEquations,
                        const List<PiecewiseLinearConstraint *> &problemConstraints );
+
+    // Called once the solver has initialized its tableau and PLC auxiliary variables.
+    void initializeTableau( unsigned explanationSize,
+                            const Vector<double> &upperBounds,
+                            const Vector<double> &lowerBounds,
+                            const SparseMatrix *tableau,
+                            const List<PiecewiseLinearConstraint *> &problemConstraints ) override;
 
     ~AletheProofWriter() override{};
 
@@ -75,13 +80,30 @@ public:
     */
     void deleteProof() override;
 
+
+    /*
+     Producing proofs for preprocessing
+    */
+    void writeEquationPreprocessingLemma( const Equation &equation, const String &equationPremise,
+                                          const Tightening &tightening );
+
+    void updatePreprocessingBound( const Tightening &tightening );
+
+    void registerPreprocessingSlackBound( unsigned variable, Tightening::BoundType type );
+
+    /*
+     TODO remove when all steps are proved
+    */
+    void writePreprocessingBoundHole( const Tightening &tightening );
+
 private:
     /*
      Initial query information.
     */
     const SparseMatrix *_initialTableau;
-    Vector<double> _initialUpperBounds;
-    Vector<double> _initialLowerBounds;
+    Map<unsigned, double> _initialUpperBounds;
+    Map<unsigned, double> _initialLowerBounds;
+
     const GroundBoundManager &_groundBoundManager;
     Vector<PiecewiseLinearConstraint *> _plc;
     Set<unsigned> _reluAuxVars;
@@ -97,7 +119,8 @@ private:
     List<String> _proof;
     List<String> _assumptions;
     List<String> _preprocessSteps;
-
+    List<String> _plcSteps;
+    List<String> _finalBoundSteps;
 
     /*
      Maintain maps the link between variables, PLC, nodes and their ids and splits
@@ -105,6 +128,32 @@ private:
     Map<unsigned, PiecewiseLinearConstraint *> _varToPlc;
     Map<unsigned, List<Tightening>> _idToSplits;
     Map<unsigned, List<Tightening>> _nodeToSplits;
+
+    /*
+     Keep track of bounds' sources
+    */
+
+    Map<unsigned, double> _addedUpperBounds;
+    Map<unsigned, double> _addedLowerBounds;
+    Map<unsigned, double> _preprocessedUpperBounds;
+    Map<unsigned, double> _preprocessedLowerBounds;
+    Map<unsigned, String> _preprocessedUpperPremises;
+    Map<unsigned, String> _preprocessedLowerPremises;
+    Set<unsigned> _reluBaseLowerVars;
+    Set<unsigned> _reluBaseUpperVars;
+
+    unsigned _nextPreprocessingBoundId = 0;
+
+    /*
+     Helper functions for handling preproceessing and derive consistent bound names for the rest of the proof
+     */
+    String preprocessingBoundPremise( unsigned variable, Tightening::BoundType type ) const;
+
+    void setPreprocessingBoundPremise( const Tightening &bound, const String &premise );
+
+    void addFinalBoundStep( unsigned variable, Tightening::BoundType type, double value, const String &premise );
+
+    void writeFinalPreprocessingBounds();
 
     /*
      Add original query assumptions to the proof file
@@ -121,7 +170,8 @@ private:
      Add proof steps for proving a lemma learned from a ReLU activation constraint.
     */
     void writeReluLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry,
-                         const ReluConstraint *relu );
+                         const ReluConstraint *relu,
+                         bool preprocessing = false);
     /*
      Collect all case splits of path to a proof node
     */

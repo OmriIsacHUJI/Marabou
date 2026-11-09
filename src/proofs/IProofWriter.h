@@ -25,6 +25,12 @@ class IProofWriter
 public:
     virtual ~IProofWriter() = default;
 
+    virtual void initializeTableau( unsigned explanationSize,
+                            const Vector<double> &upperBounds,
+                            const Vector<double> &lowerBounds,
+                            const SparseMatrix *tableau,
+                            const List<PiecewiseLinearConstraint *> &problemConstraints ) = 0;
+
     /*
      Write whole proof info to a file
     */

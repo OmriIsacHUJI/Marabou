@@ -990,7 +990,8 @@ void Engine::invokePreprocessor( const IQuery &inputQuery, bool preprocess )
     _preprocessingEnabled = preprocess;
     if ( _preprocessingEnabled )
         _preprocessedQuery = _preprocessor.preprocess(
-            inputQuery, GlobalConfiguration::PREPROCESSOR_ELIMINATE_VARIABLES );
+                inputQuery, GlobalConfiguration::PREPROCESSOR_ELIMINATE_VARIABLES,
+                static_cast<AletheProofWriter *>( _proofWriter ) );
     else
     {
         _preprocessedQuery = std::unique_ptr<Query>( inputQuery.generateQuery() );
@@ -1421,11 +1422,33 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
     {
         if ( _produceUNSATProofs && GlobalConfiguration::WRITE_ALETHE_PROOF )
         {
-            std::unique_ptr<Query> temp =  std::unique_ptr<Query>( inputQuery.generateQuery() );
-            for ( const auto &eq : temp->getEquations() )
-                _unprocessedEqs.append( eq );
-        }
+            const double max = std::numeric_limits<double>::max();
+            Map<unsigned, double> upperBounds{};
+            Map<unsigned, double> lowerBounds{};
 
+            std::unique_ptr<Query> ipq =  std::unique_ptr<Query>( inputQuery.generateQuery() );
+            for ( const auto &eq : ipq->getEquations() )
+                _unprocessedEqs.append( eq );
+
+            for ( unsigned i = 0; i < inputQuery.getNumberOfVariables(); ++i )
+            {
+                const double ub = inputQuery.getUpperBound( i );
+                const double lb = inputQuery.getLowerBound( i );
+
+                if ( ub != max )
+                    upperBounds.insert( i, ub );
+
+                if ( lb != -max )
+                    lowerBounds.insert( i, lb );
+            }
+
+            _proofWriter  = new AletheProofWriter(
+                    upperBounds,
+                    lowerBounds,
+                    _groundBoundManager,
+                    ipq->getEquations(),
+                    ipq->getPiecewiseLinearConstraints() );
+        }
         invokePreprocessor( inputQuery, preprocess );
         if ( _verbosity > 1 )
             printInputBounds( inputQuery );
@@ -1514,13 +1537,11 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
                 }
 
                 if ( _produceUNSATProofs && GlobalConfiguration::WRITE_ALETHE_PROOF )
-                    _proofWriter = new AletheProofWriter(
+                    _proofWriter->initializeTableau(
                         _tableau->getM(),
                         _groundBoundManager.getAllGroundBounds( Tightening::UB ),
                         _groundBoundManager.getAllGroundBounds( Tightening::LB ),
-                        _groundBoundManager,
                         _tableau->getSparseA(),
-                        _unprocessedEqs,
                         _plConstraints );
 
                 _UNSATCertificate =

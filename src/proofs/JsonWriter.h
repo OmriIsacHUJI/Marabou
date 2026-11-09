@@ -96,6 +96,11 @@ public:
                              UnsatCertificateNode * /*node*/ ) override{};
     void deleteProof() override{};
     void writeSimpleBoundContradiction( unsigned /*inconsistentVar*/ ) override{};
+    void initializeTableau( unsigned /*explanationSize*/,
+                                    const Vector<double> &/*upperBounds*/,
+                                    const Vector<double> &/*lowerBounds*/,
+                                    const SparseMatrix */*tableau*/,
+                                    const List<PiecewiseLinearConstraint *> &/*problemConstraints*/ ) override{};
 private:
     /*
       Write the initial tableau to a JSON list of Strings

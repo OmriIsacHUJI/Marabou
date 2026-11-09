@@ -16,6 +16,7 @@
 #ifndef __Preprocessor_h__
 #define __Preprocessor_h__
 
+#include "AletheProofWriter.h"
 #include "Equation.h"
 #include "LinearExpression.h"
 #include "List.h"
@@ -35,7 +36,8 @@ public:
       Main method of this class: preprocess the input query
     */
     std::unique_ptr<Query> preprocess( const IQuery &query,
-                                       bool attemptVariableElimination = true );
+                                       bool attemptVariableElimination = true,
+                                       AletheProofWriter *writer = NULL );
 
     /*
       Have the preprocessor start reporting statistics.
@@ -204,6 +206,11 @@ private:
       For debugging only
     */
     void dumpAllBounds( const String &message );
+
+    /*
+     Prove preprocessing steps
+    */
+    AletheProofWriter *_proofWriter;
 };
 
 #endif // __Preprocessor_h__
