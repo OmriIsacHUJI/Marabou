@@ -146,6 +146,10 @@ public:
         expectedLine = "(assert (ite (<= 0.0 x0) (= x0 x1) (<= x1 0.0)))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
+        line = file->readLine( '\n' );
+        expectedLine = String( "(assert (>= x1 0.0))" );
+        TS_ASSERT_EQUALS( line, expectedLine );
+
         // Sign
         line = file->readLine( '\n' );
         expectedLine = "(assert (ite (>= x0 0.0) (= x1 1.0) (= x1 (- 1.0))))";

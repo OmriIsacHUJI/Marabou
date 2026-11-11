@@ -432,7 +432,8 @@ bool Preprocessor::processEquations()
                 if ( FloatUtils::gt( lowerBound, getLowerBound( xi ), epsilon ) )
                 {
                     tighterBoundFound = true;
-                    _proofWriter->writeEquationPreprocessingLemma( *equation,
+                    if ( _proofWriter )
+                        _proofWriter->writeEquationPreprocessingLemma( *equation,
                                                                    "e" + std::to_string(eqCounter),
                                                             Tightening( xi, lowerBound, Tightening::LB ) );
                     setLowerBound( xi, lowerBound );
@@ -459,14 +460,15 @@ bool Preprocessor::processEquations()
                 if ( FloatUtils::lt( upperBound, getUpperBound( xi ), epsilon ) )
                 {
                     tighterBoundFound = true;
-                    _proofWriter->writeEquationPreprocessingLemma( *equation,
+                    if ( _proofWriter )
+                        _proofWriter->writeEquationPreprocessingLemma( *equation,
                                                                    "e" + std::to_string(eqCounter),
                                                                    Tightening( xi, upperBound, Tightening::UB ) );
                     setUpperBound( xi, upperBound );
                 }
             }
 
-            if ( _proofWriter && FloatUtils::gt( getLowerBound( xi ),
+            if ( FloatUtils::gt( getLowerBound( xi ),
                                  getUpperBound( xi ),
                                  GlobalConfiguration::PREPROCESSOR_ALMOST_FIXED_THRESHOLD ) )
             {

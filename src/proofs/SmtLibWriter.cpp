@@ -450,8 +450,14 @@ void SmtLibWriter::addEquation( const Equation &eq, List<String> &instance, bool
         // Scalar should be <= than sum of addends
         assertRowLine += "(<= ";
 
-    mpq_class eqScalar( eq._scalar );
-    assertRowLine += eqScalar.get_str();
+    mpq_class eqScalar( abs( eq._scalar ) );
+    String scalar = eqScalar.get_str();
+    if ( eqScalar.get_den() == 1 )
+        scalar += ".0";
+    if ( eq._scalar < 0)
+        scalar = String( "(- " ) + scalar + ")";
+
+    assertRowLine += scalar;
 
     if ( size > 1 )
         assertRowLine += String( " (+" );

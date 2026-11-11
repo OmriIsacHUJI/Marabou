@@ -63,9 +63,7 @@ public:
         gbm.initialize( n );
 
         Query query = Query();
-        // Exclude the aux vars, to be added later
-        query.setNumberOfVariables( n - 2 );
-
+        query.setNumberOfVariables( n );
         ReluConstraint relu = ReluConstraint( 0, 1 );
         relu.transformToUseAuxVariables( query );
 
@@ -75,6 +73,8 @@ public:
             rowEq.addAddend( row[i], i );
 
         AletheProofWriter writer( ubs, lbs, gbm, { rowEq }, { &relu } );
+        // Initialize tableau with info, that includes one more aux equation and two more aux variables
+        writer.initializeTableau( 2, Vector<double>( n + 2, 1 ), Vector<double>( n + 2, 0 ), NULL, { &relu } );
         writer.writeInstanceToFile( *file );
 
         String line;
@@ -82,7 +82,7 @@ public:
 
         // Tableau assumptions
         line = file->readLine( '\n' );
-        expectedLine = "(assume e0(!(= (! 0 :named x3)(+ x0 (* 2.0 x1) (- x2))):named e0))";
+        expectedLine = "(assume e0(!(= (! 0.0 :named x3)(+ x0 (* 2.0 x1) (- x2))):named e0))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         // Bound Assumptions

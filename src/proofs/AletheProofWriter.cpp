@@ -56,7 +56,6 @@ void AletheProofWriter::initializeTableau(
     const SparseMatrix *tableau,
     const List<PiecewiseLinearConstraint *> &problemConstraints )
 {
-    ASSERT( !_initialTableau );
     ASSERT( upperBounds.size() == lowerBounds.size() );
     ASSERT( explanationSize <= upperBounds.size() );
     _reluBaseLowerVars.clear();
@@ -98,7 +97,7 @@ void AletheProofWriter::initializeTableau(
             _reluBaseUpperVars.insert( relu->getAux() );
        }
     }
-
+    // All auxiliary variables are required to write these assumptions
     writeTableauAssumptions();
 }
 
