@@ -1423,28 +1423,26 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
         if ( _produceUNSATProofs && GlobalConfiguration::WRITE_ALETHE_PROOF )
         {
             const double max = std::numeric_limits<double>::max();
-            Map<unsigned, double> upperBounds{};
-            Map<unsigned, double> lowerBounds{};
 
             std::unique_ptr<Query> ipq =  std::unique_ptr<Query>( inputQuery.generateQuery() );
             for ( const auto &eq : ipq->getEquations() )
                 _unprocessedEqs.append( eq );
 
-            for ( unsigned i = 0; i < inputQuery.getNumberOfVariables(); ++i )
+            for ( unsigned i = 0; i < ipq->getNumberOfVariables(); ++i )
             {
-                const double ub = inputQuery.getUpperBound( i );
-                const double lb = inputQuery.getLowerBound( i );
+                const double ub = ipq->getUpperBound( i );
+                const double lb = ipq->getLowerBound( i );
 
                 if ( ub != max )
-                    upperBounds.insert( i, ub );
+                    _unprocessedUbs.insert( i, ub );
 
                 if ( lb != -max )
-                    lowerBounds.insert( i, lb );
+                    _unprocessedLbs.insert( i, lb );
             }
 
             _proofWriter  = new AletheProofWriter(
-                    upperBounds,
-                    lowerBounds,
+                    _unprocessedUbs,
+                    _unprocessedLbs,
                     _groundBoundManager,
                     ipq->getEquations(),
                     ipq->getPiecewiseLinearConstraints() );
@@ -3806,8 +3804,8 @@ bool Engine::certifyUNSATCertificate()
         SmtLibWriter::writeToSmtLibFile( pref + ".smt2",
                                          _unprocessedEqs.size(),
                                          varsToInclude,
-                                         groundUpperBounds,
-                                         groundLowerBounds,
+                                         _unprocessedUbs,
+                                         _unprocessedLbs,
                                          NULL,
                                          _unprocessedEqs,
                                          _plConstraints );

@@ -20,8 +20,8 @@ const unsigned SmtLibWriter::SMTLIBWRITER_PRECISION =
 List<String>
 SmtLibWriter::convertToSmtLib( unsigned numOfTableauRows,
                                unsigned numOfVariables,
-                               const Vector<double> &upperBounds,
-                               const Vector<double> &lowerBounds,
+                               const Map<unsigned, double> &upperBounds,
+                               const Map<unsigned, double> &lowerBounds,
                                const SparseMatrix *tableau,
                                const List<Equation> &additionalEquations,
                                const List<PiecewiseLinearConstraint *> &problemConstraints )
@@ -65,7 +65,7 @@ SmtLibWriter::convertToSmtLib( unsigned numOfTableauRows,
         {
             b = conVars[0];
             f = conVars[1];
-            SmtLibWriter::addReLUConstraint( b, f, constraint->getPhaseStatus(), instance );
+            SmtLibWriter::addReLUConstraint( b, f, constraint->getPhaseStatus(), instance, true );
         }
         else if ( constraint->getType() == SIGN )
         {
@@ -128,6 +128,33 @@ void SmtLibWriter::writeToSmtLibFile( const String &fileName,
                                       const List<Equation> &additionalEquations,
                                       const List<PiecewiseLinearConstraint *> &problemConstraints )
 {
+    Map<unsigned, double> upperBoundsMap = {};
+    Map<unsigned, double> lowerBoundsMap = {};
+
+    for ( unsigned i = 0; i < upperBounds.size(); ++i )
+        upperBoundsMap.insert( i, upperBounds[i] );
+    for ( unsigned i = 0; i < lowerBounds.size(); ++i )
+        upperBoundsMap.insert( i, lowerBounds[i] );
+
+    SmtLibWriter::writeToSmtLibFile( fileName,
+                                     numOfTableauRows,
+                                     numOfVariables,
+                                     upperBoundsMap,
+                                     lowerBoundsMap,
+                                     tableau,
+                                     additionalEquations,
+                                     problemConstraints );
+}
+
+void SmtLibWriter::writeToSmtLibFile( const String &fileName,
+                                      unsigned numOfTableauRows,
+                                      unsigned numOfVariables,
+                                      const Map<unsigned , double> &upperBounds,
+                                      const Map<unsigned, double> &lowerBounds,
+                                      const SparseMatrix *tableau,
+                                      const List<Equation> &additionalEquations,
+                                      const List<PiecewiseLinearConstraint *> &problemConstraints )
+{
     List<String> instance = SmtLibWriter::convertToSmtLib( numOfTableauRows,
                                                            numOfVariables,
                                                            upperBounds,
@@ -155,14 +182,16 @@ void SmtLibWriter::addFooter( List<String> &instance )
 void SmtLibWriter::addReLUConstraint( unsigned b,
                                       unsigned f,
                                       const PhaseStatus status,
-                                      List<String> &instance )
+                                      List<String> &instance,
+                                      bool preprocessed )
 {
     if ( GlobalConfiguration::WRITE_ALETHE_PROOF || status == PHASE_NOT_FIXED )
     {
         instance.append( "(assert (ite (<= 0.0 x" + std::to_string( b ) + ") (= x" +
                          std::to_string( b ) + " x" + std::to_string( f ) + ") (<= x" +
                          std::to_string( f ) + " 0.0)))\n" );
-        instance.append( "(assert (>= x" + std::to_string( f ) + " 0.0))\n" );
+       if ( !preprocessed )
+            instance.append( "(assert (>= x" + std::to_string( f ) + " 0.0))\n" );
     }
     else if ( status == RELU_PHASE_ACTIVE )
         instance.append( "(assert (= x" + std::to_string( f ) + " x" + std::to_string( b ) +
@@ -376,13 +405,26 @@ void SmtLibWriter::addTableauRow( const SparseUnsortedList &row, List<String> &i
     instance.append( assertRowLine + "))\n" );
 }
 
-void SmtLibWriter::addGroundUpperBounds( const Vector<double> &bounds, List<String> &instance )
+void SmtLibWriter::addGroundUpperBounds( const Vector<double> &bounds,  List<String> &instance )
 {
     if ( bounds.empty() )
         return;
+
+    Map<unsigned, double> boundsMap = {};
     for ( unsigned i = 0; i < bounds.size(); ++i )
+        boundsMap.insert( i, bounds[i] );
+
+    addGroundUpperBounds( boundsMap, instance );
+}
+
+void SmtLibWriter::addGroundUpperBounds( const Map<unsigned, double> &bounds, List<String> &instance )
+{
+    if ( bounds.empty() )
+        return;
+
+    for ( unsigned i : bounds.keys() )
     {
-        mpq_class bound( bounds[i] );
+        mpq_class bound(  bounds.at( i ) );
         String boundString = bound.get_str();
         boundString = bound.get_den().get_str() == "1" ? boundString + ".0" : boundString;
 
@@ -391,14 +433,26 @@ void SmtLibWriter::addGroundUpperBounds( const Vector<double> &bounds, List<Stri
     }
 }
 
-void SmtLibWriter::addGroundLowerBounds( const Vector<double> &bounds, List<String> &instance )
+void SmtLibWriter::addGroundLowerBounds( const Vector<double> &bounds,  List<String> &instance )
 {
     if ( bounds.empty() )
         return;
 
+    Map<unsigned, double> boundsMap = {};
     for ( unsigned i = 0; i < bounds.size(); ++i )
+        boundsMap.insert( i, bounds[i] );
+
+    addGroundLowerBounds( boundsMap, instance );
+}
+
+void SmtLibWriter::addGroundLowerBounds( const Map<unsigned, double> &bounds, List<String> &instance )
+{
+    if ( bounds.empty() )
+        return;
+
+    for ( unsigned i : bounds.keys() )
     {
-        mpq_class bound( bounds[i] );
+        mpq_class bound( bounds.at( i ) );
         String boundString = bound.get_str();
         boundString = bound.get_den().get_str() == "1" ? boundString + ".0" : boundString;
 

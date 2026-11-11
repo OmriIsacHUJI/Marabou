@@ -54,7 +54,7 @@ public:
       Adds a line representing a ReLU constraint, in SMTLIB format, to the SMTLIB instance
     */
     static void
-    addReLUConstraint( unsigned b, unsigned f, const PhaseStatus status, List<String> &instance );
+    addReLUConstraint( unsigned b, unsigned f, const PhaseStatus status, List<String> &instance, bool preprocessed = false );
 
     /*
       Adds a line representing a sign constraint, in SMTLIB format, to the SMTLIB instance
@@ -106,11 +106,13 @@ public:
       Adds lines representing the ground upper bounds, in SMTLIB format, to the SMTLIB instance
     */
     static void addGroundUpperBounds( const Vector<double> &bounds,  List<String> &instance );
+    static void addGroundUpperBounds( const Map<unsigned, double> &bounds,  List<String> &instance );
 
     /*
       Adds lines representing the ground lower bounds, in SMTLIB format, to the SMTLIB instance
     */
     static void addGroundLowerBounds( const Vector<double> &bounds, List<String> &instance );
+    static void addGroundLowerBounds( const Map<unsigned, double> &bounds,  List<String> &instance );
 
     /*
       Adds lines representing a tightening, in SMTLIB format, to the SMTLIB instance
@@ -133,18 +135,26 @@ public:
     static List<String>
     convertToSmtLib( unsigned numOfTableauRows,
                      unsigned numOfVariables,
-                     const Vector<double> &upperBounds,
-                     const Vector<double> &lowerBounds,
+                     const Map<unsigned, double> &upperBounds,
+                     const Map<unsigned, double> &lowerBounds,
                      const SparseMatrix *tableau,
                      const List<Equation> &additionalEquations,
                      const List<PiecewiseLinearConstraint *> &problemConstraints );
-
 
     static void writeToSmtLibFile( const String &fileName,
                                    unsigned numOfTableauRows,
                                    unsigned numOfVariables,
                                    const Vector<double> &upperBounds,
                                    const Vector<double> &lowerBounds,
+                                   const SparseMatrix *tableau,
+                                   const List<Equation> &additionalEquations,
+                                   const List<PiecewiseLinearConstraint *> &problemConstraints );
+
+    static void writeToSmtLibFile( const String &fileName,
+                                   unsigned numOfTableauRows,
+                                   unsigned numOfVariables,
+                                   const Map<unsigned, double> &upperBounds,
+                                   const Map<unsigned, double> &lowerBounds,
                                    const SparseMatrix *tableau,
                                    const List<Equation> &additionalEquations,
                                    const List<PiecewiseLinearConstraint *> &problemConstraints );
