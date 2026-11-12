@@ -66,7 +66,8 @@ std::unique_ptr<Query> Preprocessor::preprocess( const IQuery &query,
     _preprocessed = std::unique_ptr<Query>( query.generateQuery() );
     _proofWriter = writer;
 
-    informConstraintsOfInitialBounds( *_preprocessed );
+    if ( !_proofWriter )
+        informConstraintsOfInitialBounds( *_preprocessed );
 
     /*
       Next, make sure all equations are of type EQUALITY. If not, turn them
@@ -537,7 +538,6 @@ bool Preprocessor::processEquations()
 bool Preprocessor::processConstraints()
 {
     bool tighterBoundFound = false;
-    // TODO support proof production
     for ( auto &constraint : _preprocessed->getPiecewiseLinearConstraints() )
     {
         for ( unsigned variable : constraint->getParticipatingVariables() )
@@ -551,8 +551,16 @@ bool Preprocessor::processConstraints()
 
         for ( const auto &tightening : tightenings )
         {
-            if ( _proofWriter )
-                _proofWriter->writePreprocessingBoundHole( tightening );
+            const bool improves = tightening._type == Tightening::LB
+                    ? FloatUtils::gt( tightening._value, getLowerBound( tightening._variable ) )
+                    : FloatUtils::lt( tightening._value, getUpperBound( tightening._variable ) );
+
+            if ( _proofWriter && improves && constraint->getType() == RELU)
+                for ( unsigned variable : constraint->getParticipatingVariables() )
+                {
+                    _proofWriter->writeReluPreprocessingLemma( tightening, { variable, getUpperBound( variable ), Tightening::UB }, (const ReluConstraint *)constraint );
+                    _proofWriter->writeReluPreprocessingLemma( tightening, { variable, getLowerBound( variable ), Tightening::LB }, (const ReluConstraint *)constraint );
+                }
 
             if ( ( tightening._type == Tightening::LB ) &&
                  ( FloatUtils::gt( tightening._value, getLowerBound( tightening._variable ) ) ) )

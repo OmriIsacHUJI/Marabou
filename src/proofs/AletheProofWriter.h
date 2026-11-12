@@ -23,6 +23,8 @@
 #include "gmp.h"
 #include "gmpxx.h"
 
+#include <functional>
+
 class AletheProofWriter : public IProofWriter
 {
 public:
@@ -91,10 +93,7 @@ public:
 
     void registerPreprocessingSlackBound( unsigned variable, Tightening::BoundType type );
 
-    /*
-     TODO remove when all steps are proved
-    */
-    void writePreprocessingBoundHole( const Tightening &tightening );
+    void writeReluPreprocessingLemma( const Tightening &affectedTightening, const Tightening &causingTightening, const ReluConstraint *relu );
 
 private:
     /*
@@ -118,7 +117,7 @@ private:
     */
     List<String> _proof;
     List<String> _assumptions;
-    List<String> _preprocessSteps;
+    Vector<std::function<String()>> _preprocessSteps;
     List<String> _plcSteps;
     List<String> _finalBoundSteps;
 
@@ -169,9 +168,11 @@ private:
     /*
      Add proof steps for proving a lemma learned from a ReLU activation constraint.
     */
-    void writeReluLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry,
+    String writeReluLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry,
                          const ReluConstraint *relu,
-                         bool preprocessing = false);
+                         bool preprocessing = false,
+                         const String &fixedId = "",
+                         const String &fixedCausingPremise = "" );
     /*
      Collect all case splits of path to a proof node
     */

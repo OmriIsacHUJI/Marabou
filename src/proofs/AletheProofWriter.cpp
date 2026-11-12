@@ -439,8 +439,8 @@ void AletheProofWriter::writeInstanceToFile( IFile &file )
         file.write( s );
 
     // Bounds derived during preprocessing.
-    for ( const String &s : _preprocessSteps )
-        file.write( s );
+    for ( const auto &makeStep : _preprocessSteps )
+        file.write( makeStep() );
 
     // Final canonical bounds used during solving.
     writeFinalPreprocessingBounds();
@@ -596,10 +596,12 @@ void AletheProofWriter::writeLemma(
         writeReluLemma( lemmaEntry, (ReluConstraint *)matchedConstraint );
 }
 
-void AletheProofWriter::writeReluLemma(
-    const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry,
-    const ReluConstraint *relu,
-    bool preprocessing )
+String AletheProofWriter::writeReluLemma(
+                const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry,
+                const ReluConstraint *relu,
+                bool preprocessing,
+                const String &fixedId,
+                const String &fixedCausingPremise )
 {
     ASSERT( lemmaEntry->lemma && lemmaEntry->lemma->getConstraintType() == RELU );
 
@@ -610,16 +612,19 @@ void AletheProofWriter::writeReluLemma(
     unsigned affectedVar = lemma->getAffectedVar();
     double targetBound = lemma->getMinTargetBound();
     double bound = lemma->getBound();
-    String id = preprocessing ? String( "pp_" ) + std::to_string( _nextPreprocessingBoundId++ )
-                              : std::to_string( lemma->getId() );
+    const String id = preprocessing
+                      ? fixedId
+                      : std::to_string( lemma->getId() );
 
     const List<SparseUnsortedList> &explanations = lemma->getExplanations();
     Tightening::BoundType causingVarBound = lemma->getCausingVarBound();
     Tightening::BoundType affectedVarBound = lemma->getAffectedVarBound();
 
     if ( !preprocessing )
+    {
         ASSERT( relu == _varToPlc[affectedVar] );
-    ASSERT( explanations.size() == 1 );
+        ASSERT( explanations.size() == 1 );
+    }
 
     String farkasArgs = "";
     String farkasClause = "";
@@ -708,8 +713,10 @@ void AletheProofWriter::writeReluLemma(
     String conclusion = getBoundAsClause( Tightening( affectedVar, bound, affectedVarBound ) );
 
 
-    String causingPremise = preprocessing ? preprocessingBoundPremise( causingVar, causingVarBound )
-                                          : String( "cr" ) + id;
+    const String causingPremise = preprocessing ? fixedCausingPremise : String( "cr" ) + id;
+
+    if ( causingPremise == "" )
+        return "";
 
     // Prepare the shared prefix, and conclude with the remaining rules based on the exact
     // derivation type
@@ -743,7 +750,6 @@ void AletheProofWriter::writeReluLemma(
         matched = true;
         proofRuleRes = pref + " ts" + id + " eq" + identifier + "_a0 ri1_" + identifier + "))\n";
     }
-
     // If ub of b is non positive, then ub of f is 0
     else if ( causingVar == b && causingVarBound == Tightening::UB && affectedVar == f &&
               affectedVarBound == Tightening::UB && targetBound < 0 )
@@ -833,16 +839,12 @@ void AletheProofWriter::writeReluLemma(
     if ( matched )
     {
         if ( preprocessing )
-        {
-            _preprocessSteps.append( { proofRule, proofRuleRes } );
+            return proofRule + proofRuleRes;
 
-            const Tightening result( affectedVar, bound, affectedVarBound );
-            updatePreprocessingBound( result );
-            setPreprocessingBoundPremise( result, String( "rl" ) + id );
-        }
-        else
-            _proof.append( { laGeneric, res, proofRule, proofRuleRes } );
+        _proof.append( { laGeneric, res, proofRule, proofRuleRes } );
     }
+
+    return "";
 }
 
 void AletheProofWriter::linearCombinationMpq( const std::vector<mpq_t> &explainedRow,
@@ -1106,7 +1108,7 @@ void AletheProofWriter::writeSimpleBoundContradiction( unsigned inconsistentVar 
 }
 
 void AletheProofWriter::writeEquationPreprocessingLemma( const Equation &equation, const String &equationPremise,
-                                                        const Tightening &tightening )
+                                                         const Tightening &tightening )
 {
     // Collect equation coefficients.
     mpq_class exactNumerator( equation._scalar );
@@ -1213,8 +1215,11 @@ void AletheProofWriter::writeEquationPreprocessingLemma( const Equation &equatio
     updatePreprocessingBound( correctedTightening );
     setPreprocessingBoundPremise( correctedTightening, resultId );
 
-    _preprocessSteps.append( { farkasStep, resolutionStep } );
-}
+    _preprocessSteps.append(
+            [farkasStep, resolutionStep]()
+            {
+                return farkasStep + resolutionStep;
+            } );}
 
 void AletheProofWriter::updatePreprocessingBound( const Tightening &tightening )
 {
@@ -1247,7 +1252,6 @@ String AletheProofWriter::preprocessingBoundPremise( unsigned variable, Tighteni
     if ( initial.exists( variable ) )
         return String( upper ? "input_u" : "input_l" ) + id;
 
-    ASSERT( false );
     return "";
 }
 
@@ -1360,34 +1364,102 @@ void AletheProofWriter::registerPreprocessingSlackBound( unsigned variable, Tigh
     bounds.insert( variable, 0.0 );
     premises.insert( variable, premise );
 }
-
-void AletheProofWriter::writePreprocessingBoundHole( const Tightening &tightening )
+void AletheProofWriter::writeReluPreprocessingLemma( const Tightening &affectedTightening, const Tightening &causingTightening, const ReluConstraint *relu )
 {
-    const bool isUpper = tightening._type == Tightening::UB;
-    const unsigned variable = tightening._variable;
-    const double value = tightening._value;
+    const unsigned b = relu->getB();
+    const unsigned f = relu->getF();
+    const unsigned aux = relu->getAux();
+    const unsigned cause = causingTightening._variable;
+    const unsigned affected = affectedTightening._variable;
+    const double cv = causingTightening._value;
+    const double av = affectedTightening._value;
+    const auto ct = causingTightening._type;
+    const auto at = affectedTightening._type;
 
-    if (value == std::numeric_limits<double>::max() || value == -std::numeric_limits<double>::max())
+    if ( !std::isfinite( cv ) || !std::isfinite( av ) ||
+         std::abs( cv ) == std::numeric_limits<double>::max() ||
+         std::abs( av ) == std::numeric_limits<double>::max() )
         return;
 
-    Map<unsigned, double> &bounds = isUpper ? _preprocessedUpperBounds : _preprocessedLowerBounds;
+    const bool supported =
+            // LB(b) or LB(f) -> UB(aux)
+            ( affected == aux && at == Tightening::UB && ( ( cause == b && ct == Tightening::LB &&
+                  av == ( cv < 0 ? -cv : 0.0 ) ) || ( cause == f && ct == Tightening::LB && cv > 0 && av == 0 ) ) ) ||
+            // LB(aux) or UB(b) -> UB(f)
+            ( affected == f && at == Tightening::UB && ( ( cause == aux && ct == Tightening::LB &&
+                  cv > 0 && av == 0 ) || ( cause == b && ct == Tightening::UB && av == ( cv > 0 ? cv : 0.0 ) ) ) ) ||
+            // UB(f) = 0 -> UB(b) = 0
+            ( affected == b && at == Tightening::UB && cause == f && ct == Tightening::UB && cv == 0 && av == 0 ) ||
+            // UB(aux) = 0 -> LB(b) = 0
+            ( affected == b && at == Tightening::LB && cause == aux && ct == Tightening::UB && cv == 0 && av == 0 );
 
-    // Ignore bounds that do not improve the known bound.
-    if ( bounds.exists( variable ) )
-    {
-        const bool improved = isUpper ? FloatUtils::lt( value, bounds[variable] )
-                                      : FloatUtils::gt( value, bounds[variable] );
+    if ( !supported )
+        return;
 
-        if ( !improved )
-            return;
-    }
+    const String causingPremise = preprocessingBoundPremise( causingTightening._variable, causingTightening._type );
+    if ( causingPremise == "" )
+        return;
 
-    const String id = String( "pp_hole_" ) + ( isUpper ? "u" : "l" ) +
-            std::to_string( variable ) + "_" +std::to_string( _nextPreprocessingBoundId++ );
+    Tightening proofCausing = causingTightening;
 
-    _preprocessSteps.append(  String( "(step " ) + id + " (cl " + getBoundAsClause( tightening ) +
-            "):rule hole)\n" );
+    const bool upper = proofCausing._type == Tightening::UB;
+    const unsigned variable = proofCausing._variable;
+    const Map<unsigned, double> &preprocessed = upper ? _preprocessedUpperBounds : _preprocessedLowerBounds;
+    const Map<unsigned, double> &initial = upper ? _initialUpperBounds : _initialLowerBounds;
 
-    updatePreprocessingBound( tightening );
-    setPreprocessingBoundPremise( tightening, id );
+    if ( preprocessed.exists( variable ) )
+        proofCausing._value = preprocessed[variable];
+    else if ( !upper && _reluBaseLowerVars.exists( variable ) )
+        proofCausing._value = 0.0;
+    else if ( initial.exists( variable ) )
+        proofCausing._value = initial[variable];
+    else
+        return;
+
+    Tightening proofAffected = affectedTightening;
+
+    // b <= B, B > 0  ==>  f <= B
+    if ( cause == b && proofCausing._type == Tightening::UB && affected == f && proofAffected._type == Tightening::UB &&
+         proofCausing._value > 0 )
+        proofAffected._value = proofCausing._value;
+    // b >= B, B < 0  ==>  aux <= -B
+    else if ( cause == b && proofCausing._type == Tightening::LB && affected == aux &&
+                proofAffected._type == Tightening::UB && proofCausing._value < 0 )
+        proofAffected._value = -proofCausing._value;
+
+    const String id = String( "pp_" ) + std::to_string( _nextPreprocessingBoundId++ );
+
+    _preprocessSteps.append( [this, relu, proofCausing, proofAffected, id, causingPremise]()
+            {
+                ASSERT( _initialTableau );
+                ASSERT( !relu->getTableauAuxVars().empty() );
+
+                List<unsigned> causes = { proofCausing._variable };
+                auto lemma = std::make_shared<PLCLemma>(
+                        causes,
+                        proofAffected._variable,
+                        proofAffected._value,
+                        proofCausing._type,
+                        proofAffected._type,
+                        Vector<SparseUnsortedList>{},
+                        RELU,
+                        proofCausing._value,
+                        0 );
+                lemma->setToCheck();
+                auto entry = std::make_shared<GroundBoundManager::GroundBoundEntry>(
+                                0,
+                                proofAffected._value,
+                                lemma,
+                                true );
+
+                const String proof = writeReluLemma( entry, relu, true, id, causingPremise );
+
+                ASSERT( proof != "" );
+                return proof;
+            } );
+
+    // Register the derived bound immediately,
+    // so subsequent preprocessing lemmas can use it.
+    updatePreprocessingBound( proofAffected );
+    setPreprocessingBoundPremise( proofAffected, String( "rl" ) + id );
 }
