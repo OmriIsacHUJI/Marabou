@@ -3779,8 +3779,9 @@ bool Engine::certifyUNSATCertificate()
     struct timespec certificationStart = TimeUtils::sampleMicro();
     _precisionRestorer.restoreInitialEngineState( *this );
 
-    unsigned varsToInclude = _proofWriter ? _tableau->getN() - _tableau->getM() - _plConstraints.size()
-                             			  : _tableau->getN();
+    unsigned varsToInclude = _proofWriter
+                               ? _tableau->getN() - _tableau->getM() - _plConstraints.size()
+                               : _tableau->getN();
 
     Vector<double> groundUpperBounds( varsToInclude, 0 );
     Vector<double> groundLowerBounds( varsToInclude, 0 );
@@ -4047,8 +4048,9 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
         if ( linearCombination[var] != 0 )
         {
             Tightening::BoundType btype = ( ( linearCombination[var] > 0 ) && isUpper ) ||
-                                                  ( ( linearCombination[var] < 0 ) && !isUpper ) ? Tightening::UB
-            																					 : Tightening::LB;
+                                                  ( ( linearCombination[var] < 0 ) && !isUpper )
+                                            ? Tightening::UB
+                                            : Tightening::LB;
             std::shared_ptr<GroundBoundManager::GroundBoundEntry> entry =
                 _groundBoundManager.getGroundBoundEntryUpToId( var, btype, id );
 
