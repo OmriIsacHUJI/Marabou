@@ -23,7 +23,33 @@
 #include "gmp.h"
 #include "gmpxx.h"
 
-#include <functional>
+#include <cmath>
+#include <limits>
+#include <map>
+#include <memory>
+
+struct DeferredReluLemma
+{
+    const ReluConstraint *_relu;
+    Tightening _causing;
+    Tightening _affected;
+    String _id;
+    String _causingPremise;
+};
+
+struct PreprocessingStep
+{
+    String _text;
+    std::shared_ptr<DeferredReluLemma> _reluLemma;
+};
+
+struct EquationProofTerms
+{
+    mpq_class _numerator;
+    String _args;
+    String _premises;
+    String _literals;
+};
 
 class AletheProofWriter : public IProofWriter
 {
@@ -89,11 +115,10 @@ public:
     void writeEquationPreprocessingLemma( const Equation &equation, const String &equationPremise,
                                           const Tightening &tightening );
 
-    void updatePreprocessingBound( const Tightening &tightening );
+    void writeReluPreprocessingLemma( const Tightening &affected, const Tightening &causing,
+                                      const ReluConstraint *relu );
 
     void registerPreprocessingSlackBound( unsigned variable, Tightening::BoundType type );
-
-    void writeReluPreprocessingLemma( const Tightening &affectedTightening, const Tightening &causingTightening, const ReluConstraint *relu );
 
 private:
     /*
@@ -117,7 +142,7 @@ private:
     */
     List<String> _proof;
     List<String> _assumptions;
-    Vector<std::function<String()>> _preprocessSteps;
+    List<PreprocessingStep> _preprocessSteps;
     List<String> _plcSteps;
     List<String> _finalBoundSteps;
 
@@ -144,15 +169,28 @@ private:
     unsigned _nextPreprocessingBoundId = 0;
 
     /*
-     Helper functions for handling preproceessing and derive consistent bound names for the rest of the proof
+     Helper functions for handling preprocessing and derive consistent bound names for the rest of the proof
      */
+    bool validProofBound( double value ) const;
+    bool preprocessingBoundValue( unsigned variable, Tightening::BoundType type, double &value ) const;
     String preprocessingBoundPremise( unsigned variable, Tightening::BoundType type ) const;
-
+    void updatePreprocessingBound( const Tightening &bound );
     void setPreprocessingBoundPremise( const Tightening &bound, const String &premise );
+    void recordPreprocessingBound( const Tightening &bound, const String &premise );
+
+    bool isStrongerThanExact( double candidate, const mpq_class &exact, Tightening::BoundType type ) const;
+    double outwardRoundedBound( double proposed, const mpq_class &exact, Tightening::BoundType type ) const;
+    void collectEquationProofTerms( const std::map<unsigned, mpq_class> &coefficients, const Tightening &result,
+                                    const mpq_class &targetCoefficient,EquationProofTerms &terms ) const;
 
     void addFinalBoundStep( unsigned variable, Tightening::BoundType type, double value, const String &premise );
-
+    void addFinalBoundIfKnown( unsigned variable, Tightening::BoundType type, Set<unsigned> &emitted );
     void writeFinalPreprocessingBounds();
+
+    bool supportedReluPropagation( const Tightening &affected, const Tightening &cause, const ReluConstraint *relu ) const;
+    Tightening reluProofConclusion( const Tightening &affected, const Tightening &cause, const ReluConstraint *relu ) const;
+    String renderReluPreprocessingLemma( const DeferredReluLemma &pending );
+    void writePreprocessingSteps( IFile &file );
 
     /*
      Add original query assumptions to the proof file
