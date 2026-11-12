@@ -120,6 +120,25 @@ public:
 
     void registerPreprocessingSlackBound( unsigned variable, Tightening::BoundType type );
 
+    /*
+     Prove UNSAT derivation during preprocessing
+    */
+    void setOriginalVariableCount( unsigned count ) override;
+
+    /*
+     Check if a tableau was initialized for the checker
+    */
+    bool hasTableau() const override;
+
+    /*
+     Write steps to prove preprocessing UNSAT
+    */
+    bool writePreprocessingContradiction() override;
+
+    /*
+     Artificially add aux vars to the constraints
+     */
+    void setPreprocessingConstraints( const List<PiecewiseLinearConstraint *> &constraints );
 private:
     /*
      Initial query information.
@@ -133,6 +152,7 @@ private:
     Set<unsigned> _reluAuxVars;
     List<Equation> _unprocessedEquations;
     unsigned _numOfInequalities;
+    unsigned _originalVariableCount;
 
     unsigned _n;
     unsigned _m;
@@ -167,6 +187,8 @@ private:
     Set<unsigned> _reluBaseUpperVars;
 
     unsigned _nextPreprocessingBoundId = 0;
+    unsigned _preprocessingSlackRegistrationCount = 0;
+    Vector<unsigned> _preprocessingReluAuxVars;
 
     /*
      Helper functions for handling preprocessing and derive consistent bound names for the rest of the proof
@@ -191,6 +213,10 @@ private:
     Tightening reluProofConclusion( const Tightening &affected, const Tightening &cause, const ReluConstraint *relu ) const;
     String renderReluPreprocessingLemma( const DeferredReluLemma &pending );
     void writePreprocessingSteps( IFile &file );
+
+    String reluProofIdentifier( const ReluConstraint *relu ) const;
+    String reluEquationName( const ReluConstraint *relu ) const;
+
 
     /*
      Add original query assumptions to the proof file

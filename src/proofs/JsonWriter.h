@@ -101,6 +101,9 @@ public:
                                     const Vector<double> &/*lowerBounds*/,
                                     const SparseMatrix */*tableau*/,
                                     const List<PiecewiseLinearConstraint *> &/*problemConstraints*/ ) override{};
+    void setOriginalVariableCount( unsigned /*count*/ ) override{};
+    bool hasTableau() const override{ return true; };
+    bool writePreprocessingContradiction() override{ return false; };
 private:
     /*
       Write the initial tableau to a JSON list of Strings

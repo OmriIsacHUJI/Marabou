@@ -67,5 +67,20 @@ public:
      Delete the content of the proof
     */
     virtual void deleteProof() = 0;
+
+    /*
+     Store variable count before preprocessing
+    */
+    virtual void setOriginalVariableCount( unsigned count ) = 0;
+
+    /*
+     Check if a tableau was initialized for the checker
+    */
+    virtual bool hasTableau() const = 0;
+
+    /*
+     Write steps to prove preprocessing UNSAT
+    */
+    virtual bool writePreprocessingContradiction() = 0;
 };
 #endif //__IProofWriter_h__

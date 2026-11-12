@@ -26,6 +26,7 @@ AletheProofWriter::AletheProofWriter( const Map<unsigned, double> &upperBounds,
     , _plc( problemConstraints.begin(), problemConstraints.end() )
     , _unprocessedEquations( unprocessedEquations )
     , _numOfInequalities( 0 )
+    , _originalVariableCount( 0 )
     , _n( upperBounds.size() )
     , _m( 0 )
     , _varToPlc()
@@ -98,7 +99,8 @@ void AletheProofWriter::initializeTableau(
        }
     }
     // All auxiliary variables are required to write these assumptions
-    writeTableauAssumptions();
+    if ( _initialTableau )
+        writeTableauAssumptions();
 }
 
 void AletheProofWriter::writeTableauAssumptions()
@@ -135,7 +137,11 @@ void AletheProofWriter::writeTableauAssumptions()
             // Scalar should be <= than sum of addends
             eqLine += "(<= ";
 
-        eqLine += String( "(! " ) + scalar + " :named x" + std::to_string( _n - _m + counter ) + ")";
+        const String scalarName = _initialTableau
+                                  ? String( "x" ) + std::to_string( _n - _m + counter )
+                                  : String( "pp_rhs_" ) + std::to_string( counter );
+
+        eqLine += String( "(! " ) + scalar + " :named " + scalarName + ")";
 
         if ( size > 1 )
             eqLine += String( "(+" );
@@ -151,7 +157,9 @@ void AletheProofWriter::writeTableauAssumptions()
 
         if ( eq._type != Equation::EQ )
         {
-            proveEqualityWithSlackFromInequality( eq, counter, _n - _m - _plc.size() - ineqCounter );
+            const unsigned auxiliary = _initialTableau ? _n - _m - _plc.size() - ineqCounter
+                                                       : _originalVariableCount + _numOfInequalities - ineqCounter;
+            proveEqualityWithSlackFromInequality( eq, counter, auxiliary );
             --ineqCounter;
         }
         ++counter;
@@ -275,14 +283,19 @@ void AletheProofWriter::writePLCAssumption()
 {
     List<String> plcAssumptions = List<String>();
     List<String> plcSplits = List<String>();
+    unsigned reluIndex = 0;
+    const bool preprocessingOnly = !_initialTableau;
 
     for ( const auto &plc : _plc )
     {
         List<PiecewiseLinearCaseSplit> splitsInFixedOrder = {};
         // TODO support additional types
-        int constraintInt = plc->getTableauAuxVars().front();
+        if ( plc->getType() != RELU )
+            continue;
 
-        String constraintNum = std::to_string( constraintInt );
+        const ReluConstraint *relu = ( ReluConstraint * )plc;
+
+        const String constraintNum = reluProofIdentifier( relu );
         String plcAssumption = "";
 
         if ( plc->getType() == RELU )
@@ -290,10 +303,11 @@ void AletheProofWriter::writePLCAssumption()
             splitsInFixedOrder.append( { plc->getCaseSplit( RELU_PHASE_ACTIVE ),
                                          plc->getCaseSplit( RELU_PHASE_INACTIVE ) } );
 
-            ReluConstraint *relu = ( ReluConstraint * )plc;
             String f = std::to_string( relu->getF() );
             String b = std::to_string( relu->getB() );
-            String aux = std::to_string( relu->getAux() );
+            unsigned auxIndex = preprocessingOnly && !relu->auxVariableInUse() ? _preprocessingReluAuxVars[reluIndex] : relu->getAux();
+            ++reluIndex;
+            String aux = std::to_string( auxIndex );
 
             // Use common SMT representation
             String bEqualsF = String( "(= x" ) + b + " x" + f + ")";
@@ -322,16 +336,15 @@ void AletheProofWriter::writePLCAssumption()
             auxLowerBound += String( "(step auxlb2_" ) + constraintNum +
                     " (cl (<= 0.0 x" + b + ")(not base_l" + f +")(>= (- x" +
                     f + " x" + b + ") 0.0)):rule la_generic :args(1 -1 1))\n";
-            mpq_class auxLbMpq(_initialLowerBounds[relu->getAux()] );
+
             auxLowerBound += String( "(step base_l" ) + aux + " (cl (>= (!(- x" + f + " x" + b + "):named x" + aux
                     + ") 0.0)):rule resolution :premises(ri2_" + constraintNum + " auxlb1_" + constraintNum + " auxlb2_"
                     + constraintNum + " base_l" + f + "))\n";
 
             _plcSteps.append( { auxLowerBound } );
 
-            unsigned identifierInt = relu->getTableauAuxVars().front();
-            String tableauEq = "e" + std::to_string( identifierInt - ( _n - _m ) );
-            String tableauLit = convertTableauAssumptionToClause( identifierInt - ( _n - _m ) );
+            const String tableauEq = reluEquationName( relu );
+            const String tableauLit = String( "(not " ) + tableauEq + ")";
             String tableauEqTmp = tableauEq + "tmp";
 
             // Infer the relu equation
@@ -342,6 +355,14 @@ void AletheProofWriter::writePLCAssumption()
                     ") (not (<= " + tableauEqTmp + " 0.0))" + "(not (<= 0.0 " + tableauEqTmp + ")))):rule la_disequality)\n";
             reluEq += String("(step pr" ) + tableauEq + " (cl (= "+ tableauEqTmp + " 0.0)(not (<= " + tableauEqTmp + " 0.0))" + "(not (<= 0.0 " + tableauEqTmp + "))):rule or :premises (pr" + tableauEq +"_3))\n";
             reluEq += String("(step " ) + tableauEq + " (cl " + tableauEq +"):rule resolution :premises(pr"+ tableauEq + " pr"+ tableauEq +"_1 pr"+ tableauEq + "_2))\n";
+
+            if ( !preprocessingOnly )
+            {
+                const String preprocessingEq = String( "pprelu_e_" ) + f;
+                reluEq += String( "(step " ) + preprocessingEq + " (cl (! " + tableauEq + " :named "
+                        + preprocessingEq + ")):rule reordering :premises (" + tableauEq + "))\n";
+            }
+
             _plcSteps.append( reluEq );
 
             // Eagerly write basic bound resolution steps used in lemmas
@@ -427,25 +448,31 @@ void AletheProofWriter::writeInstanceToFile( IFile &file )
 {
     file.open( File::MODE_WRITE_TRUNCATE );
 
-    // Gather and write all assumptions
+    // In preprocessing UNSAT, tableau initialization was skipped.
+    // The original equation assumptions must still be emitted.
+    if ( !_initialTableau )
+        writeTableauAssumptions();
+
     writeBoundAssumptions();
     writePLCAssumption();
 
     for ( const String &s : _assumptions )
         file.write( s );
 
-    // ReLU and slack-variable foundational steps.
     for ( const String &s : _plcSteps )
         file.write( s );
 
-    // Preprocessing steps.
-    writePreprocessingSteps( file );;
+    writePreprocessingSteps( file );
 
-    // Final canonical bounds used during solving.
-    writeFinalPreprocessingBounds();
+    // These names are required by the solving proof,
+    // but not by a preprocessing contradiction.
+    if ( _initialTableau )
+    {
+        writeFinalPreprocessingBounds();
 
-    for ( const String &s : _finalBoundSteps )
-        file.write( s );
+        for ( const String &s : _finalBoundSteps )
+            file.write( s );
+    }
 
     for ( const String &s : _proof )
         file.write( s );
@@ -671,9 +698,7 @@ String AletheProofWriter::writeReluLemma(
     unsigned b = relu->getB();
     unsigned f = relu->getF();
     unsigned aux = relu->getAux();
-    int constraintInt = relu->getTableauAuxVars().front();
-
-    String identifier = std::to_string( constraintInt );
+    const String identifier = reluProofIdentifier( relu );
     bool matched = false;
 
     String proofRule = "";
@@ -784,7 +809,6 @@ String AletheProofWriter::writeReluLemma(
     {
         matched = true;
 
-        unsigned identifierInt = relu->getTableauAuxVars().front();
         String tautClause = String( "(not " ) +
                             getBoundAsClause( Tightening( affectedVar, 0, Tightening::UB ) ) + ")" +
                             conclusion;
@@ -795,14 +819,14 @@ String AletheProofWriter::writeReluLemma(
                      id + "))\n";
 
         String subConclusion = getBoundAsClause( Tightening( f, 0, Tightening::UB ) );
-        String tableauLit = convertTableauAssumptionToClause( identifierInt - ( _n - _m ) );
+        String tableauLit = String( "(not " ) + reluEquationName( relu ) + ")";
         String subFarkasClause = String( " (cl (not " ) + causeBound + ")" + conclusion + "(not " +
                                  subConclusion + ")" + tableauLit;
 
         proofRule += String( "(step ifl" ) + id + subFarkasClause +
                      "):rule la_generic :args(1 1 -1 -1))\n";
 
-        proofRuleRes += pref + +" e" + std::to_string( identifierInt - ( _n - _m ) ) + " ifl" + id + " ts" + id + " eq" +
+        proofRuleRes += pref + " " +  reluEquationName( relu ) + " ifl" + id + " ts" + id + " eq" +
                         identifier + "_a0 ri1_" + identifier + "))\n";
     }
     // If ub of b is positive, then propagate to f
@@ -811,7 +835,6 @@ String AletheProofWriter::writeReluLemma(
     {
         matched = true;
 
-        unsigned identifierInt = relu->getTableauAuxVars().front();
         String tautClause = String( "(not " ) +
                             getBoundAsClause( Tightening( affectedVar, 0, Tightening::UB ) ) + ")" +
                             conclusion;
@@ -824,14 +847,14 @@ String AletheProofWriter::writeReluLemma(
 
 
         String subConclusion = getBoundAsClause( Tightening( aux, 0, Tightening::UB ) );
-        String tableauLit = convertTableauAssumptionToClause( identifierInt - ( _n - _m ) );
+        String tableauLit = String( "(not " ) + reluEquationName( relu ) + ")";
         String subFarkasClause = String( " (cl (not " ) + causeBound + ")" + conclusion + "(not " +
                                  subConclusion + ")" + tableauLit;
 
         proofRule +=
             String( "(step ifl" ) + id + subFarkasClause + "):rule la_generic :args(1 1 -1 1))\n";
 
-        proofRuleRes += pref + " e" + std::to_string( identifierInt - ( _n - _m ) ) + " ifl" + id + " ts" + id + " eq" +
+        proofRuleRes += pref + " " +  reluEquationName( relu ) + " ifl" + id + " ts" + id + " eq" +
                         identifier + "_a0 ri1_" + identifier + "))\n";
     }
 
@@ -1112,8 +1135,7 @@ bool AletheProofWriter::validProofBound( double value ) const
            std::abs( value ) != std::numeric_limits<double>::max();
 }
 
-bool AletheProofWriter::preprocessingBoundValue(
-        unsigned variable, Tightening::BoundType type, double &value ) const
+bool AletheProofWriter::preprocessingBoundValue( unsigned variable, Tightening::BoundType type, double &value ) const
 {
     const bool upper = type == Tightening::UB;
     const Map<unsigned, double> &proved = upper ? _preprocessedUpperBounds : _preprocessedLowerBounds;
@@ -1219,7 +1241,7 @@ void AletheProofWriter::collectEquationProofTerms( const std::map<unsigned,
         const mpq_class ratio = - entry.second / targetCoefficient;
         const bool useUpper = result._type != Tightening::UB ? ratio < 0 : ratio > 0;
         const Tightening::BoundType type = useUpper ? Tightening::UB : Tightening::LB;
-        double value;
+        double value = 0;
         ASSERT( preprocessingBoundValue( variable, type, value ) );
         const String premise = preprocessingBoundPremise( variable, type );
         ASSERT( premise.length() != 0 );
@@ -1244,19 +1266,45 @@ void AletheProofWriter::writeEquationPreprocessingLemma( const Equation &equatio
     ASSERT( a != 0 );
     mpq_class factor( tightening._type == Tightening::UB ? 1 : -1 );
     factor /= a;
-    EquationProofTerms terms = {
-            mpq_class( equation._scalar ), String( "(1 " ) + factor.get_str(),
-            equationPremise, ""
-    };
+
+    String proofEquationPremise = equationPremise;
+
+    if ( !_initialTableau )
+    {
+        unsigned equationIndex = _unprocessedEquations.size();
+        unsigned reluIndex = 0;
+
+        for ( const auto *plc : _plc )
+        {
+            if ( plc->getType() != RELU )
+                continue;
+
+            const auto *relu = static_cast<const ReluConstraint *>( plc );
+
+            const String expectedName = String( "e" ) + std::to_string( equationIndex );
+
+            if ( equationPremise == expectedName )
+            {
+                ASSERT( reluIndex < _preprocessingReluAuxVars.size() );
+                proofEquationPremise = reluEquationName( relu );
+                break;
+            }
+
+            ++equationIndex;
+            ++reluIndex;
+        }
+    }
+
+    EquationProofTerms terms = {mpq_class( equation._scalar ), String( "(1 " ) +
+                                factor.get_str(),proofEquationPremise, "" };
     collectEquationProofTerms( coefficients, tightening, a, terms );
 
-    const double value = outwardRoundedBound(
-            tightening._value, terms._numerator / a, tightening._type );
+    const double value = outwardRoundedBound( tightening._value, terms._numerator / a, tightening._type );
     const Tightening proved( tightening._variable, value, tightening._type );
     const String conclusion = getBoundAsClause( proved );
     const String id = String( "ppeq_" ) + std::to_string( _nextPreprocessingBoundId++ );
     const String resultId = id + "_bound";
-    const String farkas = String( "(step " ) + id + " (cl " + conclusion + " (not " + equationPremise + ")" +
+    const String farkas = String( "(step " ) + id + " (cl " + conclusion + " (not " + proofEquationPremise + ")" +
                         terms._literals + ") :rule la_generic :args" + terms._args + "))\n";
     const String resolution = String( "(step " ) + resultId + " (cl " + conclusion +
                                 ") :rule resolution :premises(" + id + " " + terms._premises + "))\n";
@@ -1324,11 +1372,19 @@ void AletheProofWriter::writeFinalPreprocessingBounds()
 
 void AletheProofWriter::registerPreprocessingSlackBound( unsigned variable, Tightening::BoundType type )
 {
-    const Map<unsigned, double> &bounds = type == Tightening::UB ? _preprocessedUpperBounds : _preprocessedLowerBounds;
-    ASSERT( !bounds.exists( variable ) );
-    const String premise = String( type == Tightening::UB ? "base_u" : "base_l" ) +
-            std::to_string( variable );
+    const String premise = String( type == Tightening::UB ? "base_u" : "base_l" ) + std::to_string( variable );
     recordPreprocessingBound( Tightening( variable, 0.0, type ), premise );
+
+    // Inequality slack variables are registered first.
+    if ( _preprocessingSlackRegistrationCount++ < _numOfInequalities )
+        return;
+
+    // Remaining registrations correspond to ReLU auxiliaries.
+    ASSERT( type == Tightening::LB );
+    ASSERT( !_preprocessingReluAuxVars.exists( variable ) );
+
+    _preprocessingReluAuxVars.append( variable );
+    _reluBaseLowerVars.insert( variable );
 }
 
 bool AletheProofWriter::supportedReluPropagation( const Tightening &affected,
@@ -1402,20 +1458,35 @@ void AletheProofWriter::writeReluPreprocessingLemma( const Tightening &affected,
 
 String AletheProofWriter::renderReluPreprocessingLemma( const DeferredReluLemma &pending )
 {
-    ASSERT( _initialTableau );
-    ASSERT( !pending._relu->getTableauAuxVars().empty() );
-
     List<unsigned> causes = { pending._causing._variable };
+
     auto lemma = std::make_shared<PLCLemma>(
-            causes, pending._affected._variable, pending._affected._value,
-            pending._causing._type, pending._affected._type,
-            Vector<SparseUnsortedList>{}, RELU, pending._causing._value, 0 );
+            causes,
+            pending._affected._variable,
+            pending._affected._value,
+            pending._causing._type,
+            pending._affected._type,
+            Vector<SparseUnsortedList>{},
+            RELU,
+            pending._causing._value,
+            0 );
+
     lemma->setToCheck();
 
-    auto entry = std::make_shared<GroundBoundManager::GroundBoundEntry>(
-            0, pending._affected._value, lemma, true );
+    auto entry =
+            std::make_shared<GroundBoundManager::GroundBoundEntry>(
+                    0,
+                    pending._affected._value,
+                    lemma,
+                    true );
+
     const String proof = writeReluLemma(
-            entry, pending._relu, true, pending._id, pending._causingPremise );
+            entry,
+            pending._relu,
+            true,
+            pending._id,
+            pending._causingPremise );
+
     ASSERT( proof.length() != 0 );
     return proof;
 }
@@ -1429,4 +1500,86 @@ void AletheProofWriter::writePreprocessingSteps( IFile &file )
         else
             file.write( step._text );
     }
+}
+
+
+void AletheProofWriter::setOriginalVariableCount( unsigned count )
+{
+    _originalVariableCount = count;
+}
+
+bool AletheProofWriter::hasTableau() const
+{
+    return _initialTableau != NULL;
+}
+
+String AletheProofWriter::reluProofIdentifier( const ReluConstraint *relu ) const
+{
+    if ( !_initialTableau )
+        return String( "pprelu_" ) + std::to_string( relu->getF() );
+
+    ASSERT( !relu->getTableauAuxVars().empty() );
+    return std::to_string( relu->getTableauAuxVars().front() );
+}
+
+String AletheProofWriter::reluEquationName( const ReluConstraint *relu ) const
+{
+    if ( !_initialTableau )
+        return String( "pprelu_e_" ) + std::to_string( relu->getF() );
+
+    ASSERT( !relu->getTableauAuxVars().empty() );
+
+    const unsigned aux = relu->getTableauAuxVars().front();
+    ASSERT( aux >= _n - _m );
+
+    return String( "e" ) + std::to_string( aux - ( _n - _m ) );
+}
+
+
+bool AletheProofWriter::writePreprocessingContradiction()
+{
+    Set<unsigned> variables;
+
+    for ( const auto &entry : _initialUpperBounds )
+        variables.insert( entry.first );
+
+    for ( const auto &entry : _initialLowerBounds )
+        variables.insert( entry.first );
+
+    for ( const auto &entry : _preprocessedUpperBounds )
+        variables.insert( entry.first );
+
+    for ( const auto &entry : _preprocessedLowerBounds )
+        variables.insert( entry.first );
+
+    for ( unsigned variable : variables )
+    {
+        double lower, upper;
+
+        if ( !preprocessingBoundValue( variable, Tightening::LB, lower ) ||
+             !preprocessingBoundValue( variable, Tightening::UB, upper ) ||
+             !( mpq_class( lower ) > mpq_class( upper ) ) )
+            continue;
+
+        const String lowerPremise = preprocessingBoundPremise( variable, Tightening::LB );
+        const String upperPremise = preprocessingBoundPremise( variable, Tightening::UB );
+
+        if ( lowerPremise.length() == 0 || upperPremise.length() == 0 )
+            continue;
+
+        const String lowerLiteral = getBoundAsClause( Tightening( variable, lower, Tightening::LB ) );
+
+        const String upperLiteral = getBoundAsClause( Tightening( variable, upper, Tightening::UB ) );
+
+        _proof.append(  String( "(step pp_conflict (cl (not " ) + lowerLiteral + ") (not " + upperLiteral +
+                ")):rule la_generic :args (1 1))\n" );
+
+        _proof.append( String( "(step final (cl):rule resolution :premises (pp_conflict " ) +
+                lowerPremise + " " + upperPremise + "))\n" );
+
+        return true;
+    }
+
+    // No contradiction follows from the currently proved bounds.
+    return false;
 }

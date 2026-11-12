@@ -868,10 +868,9 @@ private:
     UnsatCertificateNode *_UNSATCertificate;
     CVC4::context::CDO<UnsatCertificateNode *> *_UNSATCertificateCurrentPointer;
     IProofWriter *_proofWriter;
-    List<Equation> _unprocessedEqs;
-    Map<unsigned, double> _unprocessedUbs;
-    Map<unsigned, double> _unprocessedLbs;
+    std::unique_ptr<Query> _proofInputQuery;
 
+    void writeAletheProof();
 
     /*
       Returns true iff there is a variable with bounds that can explain infeasibility of the tableau

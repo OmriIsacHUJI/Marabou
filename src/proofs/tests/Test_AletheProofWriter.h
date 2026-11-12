@@ -80,9 +80,9 @@ public:
         String line;
         String expectedLine;
 
-        // Tableau assumptions
+        // Tableau assumptions (before preprocessing)
         line = file->readLine( '\n' );
-        expectedLine = "(assume e0(!(= (! 0.0 :named x3)(+ x0 (* 2.0 x1) (- x2))):named e0))";
+        expectedLine = "(assume e0(!(= (! 0.0 :named pp_rhs_0)(+ x0 (* 2.0 x1) (- x2))):named e0))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         // Bound Assumptions
@@ -106,9 +106,9 @@ public:
         expectedLine = "(assume input_l2 (!(>= x2 0.0):named input_l2))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
-        // Relu Assumptions
+        // Relu Assumptions  (before preprocessing)
         line = file->readLine( '\n' );
-        expectedLine = "(assume relu0 (ite (!(<= 0.0 x0):named a0)(= x0 x1)(<= x1 0.0)))";
+        expectedLine = "(assume relupprelu_1 (ite (!(<= 0.0 x0):named apprelu_1)(= x0 x1)(<= x1 0.0)))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );

@@ -73,7 +73,6 @@ Engine::Engine()
     , _groundBoundManager( _context )
     , _UNSATCertificate( NULL )
     , _proofWriter( NULL )
-    , _unprocessedEqs( {} )
 {
     _searchTreeHandler.setStatistics( &_statistics );
     _tableau->setStatistics( &_statistics );
@@ -926,7 +925,12 @@ void Engine::fixViolatedPlConstraintIfPossible()
 
 bool Engine::processInputQuery( const IQuery &inputQuery )
 {
-    return processInputQuery( inputQuery, GlobalConfiguration::PREPROCESS_INPUT_QUERY );
+    bool res = processInputQuery( inputQuery, GlobalConfiguration::PREPROCESS_INPUT_QUERY );
+
+    if ( _proofWriter && !res && _exitCode == Engine::UNSAT )
+        writeAletheProof();
+
+    return res;
 }
 
 bool Engine::calculateBounds( const IQuery &inputQuery )
@@ -1423,30 +1427,33 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
         if ( _produceUNSATProofs && GlobalConfiguration::WRITE_ALETHE_PROOF )
         {
             const double max = std::numeric_limits<double>::max();
+            _proofInputQuery.reset( inputQuery.generateQuery() );
+            Map<unsigned, double> ubs {};
+            Map<unsigned, double> lbs {};
 
-            std::unique_ptr<Query> ipq =  std::unique_ptr<Query>( inputQuery.generateQuery() );
-            for ( const auto &eq : ipq->getEquations() )
-                _unprocessedEqs.append( eq );
 
-            for ( unsigned i = 0; i < ipq->getNumberOfVariables(); ++i )
+            for ( unsigned i = 0; i < _proofInputQuery->getNumberOfVariables(); ++i )
             {
-                const double ub = ipq->getUpperBound( i );
-                const double lb = ipq->getLowerBound( i );
+                const double ub = _proofInputQuery->getUpperBound( i );
+                const double lb = _proofInputQuery->getLowerBound( i );
 
                 if ( ub != max )
-                    _unprocessedUbs.insert( i, ub );
+                    ubs.insert( i, ub );
 
                 if ( lb != -max )
-                    _unprocessedLbs.insert( i, lb );
+                    lbs.insert( i, lb );
             }
 
-            _proofWriter  = new AletheProofWriter(
-                    _unprocessedUbs,
-                    _unprocessedLbs,
+            _proofWriter = new AletheProofWriter(
+                    ubs,
+                    lbs,
                     _groundBoundManager,
-                    ipq->getEquations(),
-                    ipq->getPiecewiseLinearConstraints() );
+                    _proofInputQuery->getEquations(),
+                    _proofInputQuery->getPiecewiseLinearConstraints() );
+
+            _proofWriter->setOriginalVariableCount( inputQuery.getNumberOfVariables() );
         }
+
         invokePreprocessor( inputQuery, preprocess );
         if ( _verbosity > 1 )
             printInputBounds( inputQuery );
@@ -1595,16 +1602,14 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
 
         if ( !_tableau->allBoundsValid() )
         {
-            // Some variable bounds are invalid, so the query is unsat
-            if ( _proofWriter )
-                _proofWriter->writeSimpleBoundContradiction( _boundManager.getInconsistentVariable() );
             throw InfeasibleQueryException();
         }
     }
     catch ( const InfeasibleQueryException & )
     {
         ENGINE_LOG( "processInputQuery done\n" );
-
+        if ( _proofWriter && _proofWriter->hasTableau() )
+            _proofWriter->writeSimpleBoundContradiction( _boundManager.getInconsistentVariable() );
         struct timespec end = TimeUtils::sampleMicro();
         _statistics.setLongAttribute( Statistics::PREPROCESSING_TIME_MICRO,
                                       TimeUtils::timePassed( start, end ) );
@@ -3787,32 +3792,7 @@ bool Engine::certifyUNSATCertificate()
 
     if ( _proofWriter )
     {
-        String pref;
-        if ( Options::get()->getString( Options::INPUT_FILE_PATH ).length() > 0 )
-        {
-            pref = Options::get()->getString( Options::INPUT_FILE_PATH ).tokenize( "/" ).back() +
-                   Options::get()->getString( Options::PROPERTY_FILE_PATH ).tokenize( "/" ).back();
-        }
-        else
-        {
-            ASSERT( Options::get()->getString( Options::INPUT_QUERY_FILE_PATH ).length() > 0 );
-            pref =
-                Options::get()->getString( Options::INPUT_QUERY_FILE_PATH ).tokenize( "/" ).back();
-        }
-
-        File proofFile( pref + ".smt2.alethe" );
-        SmtLibWriter::writeToSmtLibFile( pref + ".smt2",
-                                         _unprocessedEqs.size(),
-                                         varsToInclude,
-                                         _unprocessedUbs,
-                                         _unprocessedLbs,
-                                         NULL,
-                                         _unprocessedEqs,
-                                         _plConstraints );
-
-
-        _proofWriter->writeInstanceToFile( proofFile );
-        printf( "proof written to Alethe format and needs to be certified separately\n" );
+        writeAletheProof();
         certificationSucceeded = true;
     }
     else
@@ -4169,4 +4149,52 @@ void Engine::deleteProofIfExists() const
 {
     if ( _produceUNSATProofs && _proofWriter )
         _proofWriter->deleteProof();
+}
+
+void Engine::writeAletheProof()
+{
+    if ( !_proofWriter->hasTableau()  )
+        _proofWriter->writePreprocessingContradiction();
+
+    String pref;
+    if ( Options::get()->getString(Options::INPUT_FILE_PATH).length() > 0 )
+    {
+        pref = Options::get()->getString( Options::INPUT_FILE_PATH ).tokenize( "/" ).back() +
+               Options::get()->getString( Options::PROPERTY_FILE_PATH ).tokenize( "/" ).back();
+    }
+    else
+    {
+        ASSERT( Options::get()->getString(  Options::INPUT_QUERY_FILE_PATH ).length() > 0 );
+        pref =
+                Options::get()->getString( Options::INPUT_QUERY_FILE_PATH ).tokenize( "/" ).back();
+    }
+
+    File proofFile( pref + ".smt2.alethe" );
+    Map<unsigned, double> ubs {};
+    Map<unsigned, double> lbs {};
+    const double max = std::numeric_limits<double>::max();
+
+
+    for ( unsigned i = 0; i < _proofInputQuery->getNumberOfVariables(); ++i )
+    {
+        const double ub = _proofInputQuery->getUpperBound( i );
+        const double lb = _proofInputQuery->getLowerBound( i );
+
+        if ( ub != max )
+            ubs.insert( i, ub );
+
+        if ( lb != -max )
+            lbs.insert( i, lb );
+    }
+    SmtLibWriter::writeToSmtLibFile( pref + ".smt2",
+                                    _proofInputQuery->getNumberOfEquations(),
+                                    _proofInputQuery->getNumberOfVariables(),
+                                    _proofInputQuery->getUpperBounds(),
+                                    _proofInputQuery->getLowerBounds(),
+                                    NULL,
+                                    _proofInputQuery->getEquations(),
+                                    _proofInputQuery->getPiecewiseLinearConstraints() );
+
+    _proofWriter->writeInstanceToFile( proofFile );
+    printf( "proof written to Alethe format and needs to be certified separately\n" );
 }
