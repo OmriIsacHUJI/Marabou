@@ -299,8 +299,8 @@ void JsonWriter::writePLCLemmas( const List<std::shared_ptr<PLCLemma>> &PLCExpla
             }
 
             causingBoundType = lemma->getCausingVarBound() == Tightening::UB
-                                 ? String( UPPER_BOUND )
-                                 : String( LOWER_BOUND );
+                                   ? String( UPPER_BOUND )
+                                   : String( LOWER_BOUND );
             instance.append( String( CAUSING_BOUND ) + causingBoundType + String( ", " ) );
             instance.append( String( CONSTRAINT ) + std::to_string( lemma->getConstraintType() ) +
                              String( ",\n" ) );

@@ -138,8 +138,8 @@ void AletheProofWriter::writeTableauAssumptions()
             eqLine += "(<= ";
 
         const String scalarName = _initialTableau
-                                      ? String( "x" ) + std::to_string( _n - _m + counter )
-                                      : String( "pp_rhs_" ) + std::to_string( counter );
+                                  ? String( "x" ) + std::to_string( _n - _m + counter )
+                                  : String( "pp_rhs_" ) + std::to_string( counter );
 
         eqLine += String( "(! " ) + scalar + " :named " + scalarName + ")";
 
@@ -311,8 +311,8 @@ void AletheProofWriter::writePLCAssumption()
             String f = std::to_string( relu->getF() );
             String b = std::to_string( relu->getB() );
             unsigned auxIndex = preprocessingOnly && !relu->auxVariableInUse()
-                                    ? _preprocessingReluAuxVars[reluIndex]
-                                    : relu->getAux();
+                                ? _preprocessingReluAuxVars[reluIndex]
+                                : relu->getAux();
             ++reluIndex;
             String aux = std::to_string( auxIndex );
 
