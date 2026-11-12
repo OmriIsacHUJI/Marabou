@@ -85,7 +85,8 @@ std::unique_ptr<Query> Preprocessor::preprocess( const IQuery &query,
     /*
       Merge consecutive WS layers
     */
-    if ( !_proofWriter && !Options::get()->getBool( Options::DO_NOT_MERGE_CONSECUTIVE_WEIGHTED_SUM_LAYERS ) )
+    if ( !_proofWriter &&
+         !Options::get()->getBool( Options::DO_NOT_MERGE_CONSECUTIVE_WEIGHTED_SUM_LAYERS ) )
     {
         _preprocessed->mergeConsecutiveWeightedSumLayers(
             unhandledEquations, varsInUnhandledConstraints, _unusedSymbolicallyFixedVariables );
@@ -105,7 +106,7 @@ std::unique_ptr<Query> Preprocessor::preprocess( const IQuery &query,
             if ( plc->getType() != RELU )
                 continue;
 
-            const ReluConstraint * relu = static_cast<const ReluConstraint *>( plc );
+            const ReluConstraint *relu = static_cast<const ReluConstraint *>( plc );
             _proofWriter->registerPreprocessingSlackBound( relu->getAux(), Tightening::LB );
         }
 
@@ -256,8 +257,8 @@ void Preprocessor::makeAllEquationsEqualities()
             _preprocessed->setLowerBound( auxVariable, 0 );
 
         if ( _proofWriter )
-            _proofWriter->registerPreprocessingSlackBound( auxVariable,  equation._type == Equation::LE
-                    ? Tightening::LB: Tightening::UB );
+            _proofWriter->registerPreprocessingSlackBound(
+                auxVariable, equation._type == Equation::LE ? Tightening::LB : Tightening::UB );
 
         equation._type = Equation::EQ;
 
@@ -434,9 +435,10 @@ bool Preprocessor::processEquations()
                 {
                     tighterBoundFound = true;
                     if ( _proofWriter )
-                        _proofWriter->writeEquationPreprocessingLemma( *equation,
-                                                                   "e" + std::to_string(eqCounter),
-                                                            Tightening( xi, lowerBound, Tightening::LB ) );
+                        _proofWriter->writeEquationPreprocessingLemma(
+                            *equation,
+                            "e" + std::to_string( eqCounter ),
+                            Tightening( xi, lowerBound, Tightening::LB ) );
                     setLowerBound( xi, lowerBound );
                 }
             }
@@ -462,9 +464,10 @@ bool Preprocessor::processEquations()
                 {
                     tighterBoundFound = true;
                     if ( _proofWriter )
-                        _proofWriter->writeEquationPreprocessingLemma( *equation,
-                                                                   "e" + std::to_string(eqCounter),
-                                                                   Tightening( xi, upperBound, Tightening::UB ) );
+                        _proofWriter->writeEquationPreprocessingLemma(
+                            *equation,
+                            "e" + std::to_string( eqCounter ),
+                            Tightening( xi, upperBound, Tightening::UB ) );
                     setUpperBound( xi, upperBound );
                 }
             }
@@ -551,15 +554,22 @@ bool Preprocessor::processConstraints()
 
         for ( const auto &tightening : tightenings )
         {
-            const bool improves = tightening._type == Tightening::LB
+            const bool improves =
+                tightening._type == Tightening::LB
                     ? FloatUtils::gt( tightening._value, getLowerBound( tightening._variable ) )
                     : FloatUtils::lt( tightening._value, getUpperBound( tightening._variable ) );
 
-            if ( _proofWriter && improves && constraint->getType() == RELU)
+            if ( _proofWriter && improves && constraint->getType() == RELU )
                 for ( unsigned variable : constraint->getParticipatingVariables() )
                 {
-                    _proofWriter->writeReluPreprocessingLemma( tightening, { variable, getUpperBound( variable ), Tightening::UB }, (const ReluConstraint *)constraint );
-                    _proofWriter->writeReluPreprocessingLemma( tightening, { variable, getLowerBound( variable ), Tightening::LB }, (const ReluConstraint *)constraint );
+                    _proofWriter->writeReluPreprocessingLemma(
+                        tightening,
+                        { variable, getUpperBound( variable ), Tightening::UB },
+                        (const ReluConstraint *)constraint );
+                    _proofWriter->writeReluPreprocessingLemma(
+                        tightening,
+                        { variable, getLowerBound( variable ), Tightening::LB },
+                        (const ReluConstraint *)constraint );
                 }
 
             if ( ( tightening._type == Tightening::LB ) &&

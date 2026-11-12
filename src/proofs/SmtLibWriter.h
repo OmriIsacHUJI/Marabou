@@ -21,8 +21,8 @@
 #include "List.h"
 #include "MString.h"
 #include "MaxConstraint.h"
-#include "PiecewiseLinearConstraint.h"
 #include "Options.h"
+#include "PiecewiseLinearConstraint.h"
 #include "SparseUnsortedList.h"
 #include "Vector.h"
 #include "gmpxx.h"
@@ -53,8 +53,11 @@ public:
     /*
       Adds a line representing a ReLU constraint, in SMTLIB format, to the SMTLIB instance
     */
-    static void
-    addReLUConstraint( unsigned b, unsigned f, const PhaseStatus status, List<String> &instance, bool preprocessed = false );
+    static void addReLUConstraint( unsigned b,
+                                   unsigned f,
+                                   const PhaseStatus status,
+                                   List<String> &instance,
+                                   bool preprocessed = false );
 
     /*
       Adds a line representing a sign constraint, in SMTLIB format, to the SMTLIB instance
@@ -105,14 +108,14 @@ public:
     /*
       Adds lines representing the ground upper bounds, in SMTLIB format, to the SMTLIB instance
     */
-    static void addGroundUpperBounds( const Vector<double> &bounds,  List<String> &instance );
-    static void addGroundUpperBounds( const Map<unsigned, double> &bounds,  List<String> &instance );
+    static void addGroundUpperBounds( const Vector<double> &bounds, List<String> &instance );
+    static void addGroundUpperBounds( const Map<unsigned, double> &bounds, List<String> &instance );
 
     /*
       Adds lines representing the ground lower bounds, in SMTLIB format, to the SMTLIB instance
     */
     static void addGroundLowerBounds( const Vector<double> &bounds, List<String> &instance );
-    static void addGroundLowerBounds( const Map<unsigned, double> &bounds,  List<String> &instance );
+    static void addGroundLowerBounds( const Map<unsigned, double> &bounds, List<String> &instance );
 
     /*
       Adds lines representing a tightening, in SMTLIB format, to the SMTLIB instance

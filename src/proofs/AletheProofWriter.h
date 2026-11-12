@@ -112,10 +112,12 @@ public:
     /*
      Producing proofs for preprocessing
     */
-    void writeEquationPreprocessingLemma( const Equation &equation, const String &equationPremise,
+    void writeEquationPreprocessingLemma( const Equation &equation,
+                                          const String &equationPremise,
                                           const Tightening &tightening );
 
-    void writeReluPreprocessingLemma( const Tightening &affected, const Tightening &causing,
+    void writeReluPreprocessingLemma( const Tightening &affected,
+                                      const Tightening &causing,
                                       const ReluConstraint *relu );
 
     void registerPreprocessingSlackBound( unsigned variable, Tightening::BoundType type );
@@ -139,6 +141,7 @@ public:
      Artificially add aux vars to the constraints
      */
     void setPreprocessingConstraints( const List<PiecewiseLinearConstraint *> &constraints );
+
 private:
     /*
      Initial query information.
@@ -191,26 +194,42 @@ private:
     Vector<unsigned> _preprocessingReluAuxVars;
 
     /*
-     Helper functions for handling preprocessing and derive consistent bound names for the rest of the proof
+     Helper functions for handling preprocessing and derive consistent bound names for the rest of
+     the proof
      */
     bool validProofBound( double value ) const;
-    bool preprocessingBoundValue( unsigned variable, Tightening::BoundType type, double &value ) const;
+    bool
+    preprocessingBoundValue( unsigned variable, Tightening::BoundType type, double &value ) const;
     String preprocessingBoundPremise( unsigned variable, Tightening::BoundType type ) const;
     void updatePreprocessingBound( const Tightening &bound );
     void setPreprocessingBoundPremise( const Tightening &bound, const String &premise );
     void recordPreprocessingBound( const Tightening &bound, const String &premise );
 
-    bool isStrongerThanExact( double candidate, const mpq_class &exact, Tightening::BoundType type ) const;
-    double outwardRoundedBound( double proposed, const mpq_class &exact, Tightening::BoundType type ) const;
-    void collectEquationProofTerms( const std::map<unsigned, mpq_class> &coefficients, const Tightening &result,
-                                    const mpq_class &targetCoefficient,EquationProofTerms &terms ) const;
+    bool isStrongerThanExact( double candidate,
+                              const mpq_class &exact,
+                              Tightening::BoundType type ) const;
+    double outwardRoundedBound( double proposed,
+                                const mpq_class &exact,
+                                Tightening::BoundType type ) const;
+    void collectEquationProofTerms( const std::map<unsigned, mpq_class> &coefficients,
+                                    const Tightening &result,
+                                    const mpq_class &targetCoefficient,
+                                    EquationProofTerms &terms ) const;
 
-    void addFinalBoundStep( unsigned variable, Tightening::BoundType type, double value, const String &premise );
-    void addFinalBoundIfKnown( unsigned variable, Tightening::BoundType type, Set<unsigned> &emitted );
+    void addFinalBoundStep( unsigned variable,
+                            Tightening::BoundType type,
+                            double value,
+                            const String &premise );
+    void
+    addFinalBoundIfKnown( unsigned variable, Tightening::BoundType type, Set<unsigned> &emitted );
     void writeFinalPreprocessingBounds();
 
-    bool supportedReluPropagation( const Tightening &affected, const Tightening &cause, const ReluConstraint *relu ) const;
-    Tightening reluProofConclusion( const Tightening &affected, const Tightening &cause, const ReluConstraint *relu ) const;
+    bool supportedReluPropagation( const Tightening &affected,
+                                   const Tightening &cause,
+                                   const ReluConstraint *relu ) const;
+    Tightening reluProofConclusion( const Tightening &affected,
+                                    const Tightening &cause,
+                                    const ReluConstraint *relu ) const;
     String renderReluPreprocessingLemma( const DeferredReluLemma &pending );
     void writePreprocessingSteps( IFile &file );
 
@@ -227,16 +246,16 @@ private:
 
     void writeTableauAssumptions();
 
-    void proveEqualityWithSlackFromInequality(Equation eq, unsigned eqIndex,  unsigned auxIndex);
+    void proveEqualityWithSlackFromInequality( Equation eq, unsigned eqIndex, unsigned auxIndex );
 
     /*
      Add proof steps for proving a lemma learned from a ReLU activation constraint.
     */
     String writeReluLemma( const std::shared_ptr<GroundBoundManager::GroundBoundEntry> &lemmaEntry,
-                         const ReluConstraint *relu,
-                         bool preprocessing = false,
-                         const String &fixedId = "",
-                         const String &fixedCausingPremise = "" );
+                           const ReluConstraint *relu,
+                           bool preprocessing = false,
+                           const String &fixedId = "",
+                           const String &fixedCausingPremise = "" );
     /*
      Collect all case splits of path to a proof node
     */

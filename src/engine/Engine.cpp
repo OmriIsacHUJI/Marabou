@@ -86,8 +86,8 @@ Engine::Engine()
 
     _boundManager.registerEngine( this );
     _statisticsPrintingFrequency = ( _lpSolverType == LPSolverType::NATIVE )
-                                     ? GlobalConfiguration::STATISTICS_PRINTING_FREQUENCY
-                                     : GlobalConfiguration::STATISTICS_PRINTING_FREQUENCY_GUROBI;
+                                       ? GlobalConfiguration::STATISTICS_PRINTING_FREQUENCY
+                                       : GlobalConfiguration::STATISTICS_PRINTING_FREQUENCY_GUROBI;
 
     _UNSATCertificateCurrentPointer =
         _produceUNSATProofs ? new ( true )
@@ -490,8 +490,7 @@ void Engine::performBoundTighteningAfterCaseSplit()
     do
     {
         performSymbolicBoundTightening();
-    }
-    while ( applyAllValidConstraintCaseSplits() );
+    } while ( applyAllValidConstraintCaseSplits() );
 
     // Tighten bounds of an output layer with MILP solver
     if ( _networkLevelReasoner ) // to avoid failing of system test.
@@ -993,9 +992,10 @@ void Engine::invokePreprocessor( const IQuery &inputQuery, bool preprocess )
     // If processing is enabled, invoke the preprocessor
     _preprocessingEnabled = preprocess;
     if ( _preprocessingEnabled )
-        _preprocessedQuery = _preprocessor.preprocess(
-                inputQuery, GlobalConfiguration::PREPROCESSOR_ELIMINATE_VARIABLES,
-                static_cast<AletheProofWriter *>( _proofWriter ) );
+        _preprocessedQuery =
+            _preprocessor.preprocess( inputQuery,
+                                      GlobalConfiguration::PREPROCESSOR_ELIMINATE_VARIABLES,
+                                      static_cast<AletheProofWriter *>( _proofWriter ) );
     else
     {
         _preprocessedQuery = std::unique_ptr<Query>( inputQuery.generateQuery() );
@@ -1428,8 +1428,8 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
         {
             const double max = std::numeric_limits<double>::max();
             _proofInputQuery.reset( inputQuery.generateQuery() );
-            Map<unsigned, double> ubs {};
-            Map<unsigned, double> lbs {};
+            Map<unsigned, double> ubs{};
+            Map<unsigned, double> lbs{};
 
 
             for ( unsigned i = 0; i < _proofInputQuery->getNumberOfVariables(); ++i )
@@ -1444,12 +1444,12 @@ bool Engine::processInputQuery( const IQuery &inputQuery, bool preprocess )
                     lbs.insert( i, lb );
             }
 
-            _proofWriter = new AletheProofWriter(
-                    ubs,
-                    lbs,
-                    _groundBoundManager,
-                    _proofInputQuery->getEquations(),
-                    _proofInputQuery->getPiecewiseLinearConstraints() );
+            _proofWriter =
+                new AletheProofWriter( ubs,
+                                       lbs,
+                                       _groundBoundManager,
+                                       _proofInputQuery->getEquations(),
+                                       _proofInputQuery->getPiecewiseLinearConstraints() );
 
             _proofWriter->setOriginalVariableCount( inputQuery.getNumberOfVariables() );
         }
@@ -3778,7 +3778,9 @@ bool Engine::certifyUNSATCertificate()
     struct timespec certificationStart = TimeUtils::sampleMicro();
     _precisionRestorer.restoreInitialEngineState( *this );
 
-    unsigned varsToInclude = _proofWriter ? _tableau->getN() - _tableau->getM() - _plConstraints.size() : _tableau->getN();
+    unsigned varsToInclude = _proofWriter
+                                 ? _tableau->getN() - _tableau->getM() - _plConstraints.size()
+                                 : _tableau->getN();
 
     Vector<double> groundUpperBounds( varsToInclude, 0 );
     Vector<double> groundLowerBounds( varsToInclude, 0 );
@@ -4042,12 +4044,12 @@ Engine::analyseExplanationDependencies( const SparseUnsortedList &explanation,
     // Iterate through all deduced bounds, check which participated in the explanation
     for ( unsigned var = 0; var < linearCombination.size(); ++var )
     {
-        if (  linearCombination[var] != 0 )
+        if ( linearCombination[var] != 0 )
         {
             Tightening::BoundType btype = ( ( linearCombination[var] > 0 ) && isUpper ) ||
                                                   ( ( linearCombination[var] < 0 ) && !isUpper )
-                                            ? Tightening::UB
-                                            : Tightening::LB;
+                                              ? Tightening::UB
+                                              : Tightening::LB;
             std::shared_ptr<GroundBoundManager::GroundBoundEntry> entry =
                 _groundBoundManager.getGroundBoundEntryUpToId( var, btype, id );
 
@@ -4153,25 +4155,24 @@ void Engine::deleteProofIfExists() const
 
 void Engine::writeAletheProof()
 {
-    if ( !_proofWriter->hasTableau()  )
+    if ( !_proofWriter->hasTableau() )
         _proofWriter->writePreprocessingContradiction();
 
     String pref;
-    if ( Options::get()->getString(Options::INPUT_FILE_PATH).length() > 0 )
+    if ( Options::get()->getString( Options::INPUT_FILE_PATH ).length() > 0 )
     {
         pref = Options::get()->getString( Options::INPUT_FILE_PATH ).tokenize( "/" ).back() +
                Options::get()->getString( Options::PROPERTY_FILE_PATH ).tokenize( "/" ).back();
     }
     else
     {
-        ASSERT( Options::get()->getString(  Options::INPUT_QUERY_FILE_PATH ).length() > 0 );
-        pref =
-                Options::get()->getString( Options::INPUT_QUERY_FILE_PATH ).tokenize( "/" ).back();
+        ASSERT( Options::get()->getString( Options::INPUT_QUERY_FILE_PATH ).length() > 0 );
+        pref = Options::get()->getString( Options::INPUT_QUERY_FILE_PATH ).tokenize( "/" ).back();
     }
 
     File proofFile( pref + ".smt2.alethe" );
-    Map<unsigned, double> ubs {};
-    Map<unsigned, double> lbs {};
+    Map<unsigned, double> ubs{};
+    Map<unsigned, double> lbs{};
     const double max = std::numeric_limits<double>::max();
 
 
@@ -4187,13 +4188,13 @@ void Engine::writeAletheProof()
             lbs.insert( i, lb );
     }
     SmtLibWriter::writeToSmtLibFile( pref + ".smt2",
-                                    _proofInputQuery->getNumberOfEquations(),
-                                    _proofInputQuery->getNumberOfVariables(),
-                                    _proofInputQuery->getUpperBounds(),
-                                    _proofInputQuery->getLowerBounds(),
-                                    NULL,
-                                    _proofInputQuery->getEquations(),
-                                    _proofInputQuery->getPiecewiseLinearConstraints() );
+                                     _proofInputQuery->getNumberOfEquations(),
+                                     _proofInputQuery->getNumberOfVariables(),
+                                     _proofInputQuery->getUpperBounds(),
+                                     _proofInputQuery->getLowerBounds(),
+                                     NULL,
+                                     _proofInputQuery->getEquations(),
+                                     _proofInputQuery->getPiecewiseLinearConstraints() );
 
     _proofWriter->writeInstanceToFile( proofFile );
     printf( "proof written to Alethe format and needs to be certified separately\n" );

@@ -47,14 +47,15 @@ public:
     */
     void test_alethe_assumption_writing()
     {
-        // Construct all required info, assuming additional aux vars and equations (post preprocessing)
+        // Construct all required info, assuming additional aux vars and equations (post
+        // preprocessing)
         Vector<double> row = { 1, 2, -1 }; // excluding scalar
         Map<unsigned, double> ubs;
         Map<unsigned, double> lbs;
         for ( unsigned i = 0; i < row.size(); ++i )
         {
-            ubs.insert( i,1 );
-            lbs.insert( i,0 );
+            ubs.insert( i, 1 );
+            lbs.insert( i, 0 );
         }
 
         unsigned n = ubs.size();
@@ -73,8 +74,10 @@ public:
             rowEq.addAddend( row[i], i );
 
         AletheProofWriter writer( ubs, lbs, gbm, { rowEq }, { &relu } );
-        // Initialize tableau with info, that includes one more aux equation and two more aux variables
-        writer.initializeTableau( 2, Vector<double>( n + 2, 1 ), Vector<double>( n + 2, 0 ), NULL, { &relu } );
+        // Initialize tableau with info, that includes one more aux equation and two more aux
+        // variables
+        writer.initializeTableau(
+            2, Vector<double>( n + 2, 1 ), Vector<double>( n + 2, 0 ), NULL, { &relu } );
         writer.writeInstanceToFile( *file );
 
         String line;
@@ -108,7 +111,8 @@ public:
 
         // Relu Assumptions  (before preprocessing)
         line = file->readLine( '\n' );
-        expectedLine = "(assume relupprelu_1 (ite (!(<= 0.0 x0):named apprelu_1)(= x0 x1)(<= x1 0.0)))";
+        expectedLine =
+            "(assume relupprelu_1 (ite (!(<= 0.0 x0):named apprelu_1)(= x0 x1)(<= x1 0.0)))";
         TS_ASSERT_EQUALS( line, expectedLine );
 
         line = file->readLine( '\n' );

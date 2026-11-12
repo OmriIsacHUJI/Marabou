@@ -149,7 +149,7 @@ void SmtLibWriter::writeToSmtLibFile( const String &fileName,
 void SmtLibWriter::writeToSmtLibFile( const String &fileName,
                                       unsigned numOfTableauRows,
                                       unsigned numOfVariables,
-                                      const Map<unsigned , double> &upperBounds,
+                                      const Map<unsigned, double> &upperBounds,
                                       const Map<unsigned, double> &lowerBounds,
                                       const SparseMatrix *tableau,
                                       const List<Equation> &additionalEquations,
@@ -190,7 +190,7 @@ void SmtLibWriter::addReLUConstraint( unsigned b,
         instance.append( "(assert (ite (<= 0.0 x" + std::to_string( b ) + ") (= x" +
                          std::to_string( b ) + " x" + std::to_string( f ) + ") (<= x" +
                          std::to_string( f ) + " 0.0)))\n" );
-       if ( !preprocessed )
+        if ( !preprocessed )
             instance.append( "(assert (>= x" + std::to_string( f ) + " 0.0))\n" );
     }
     else if ( status == RELU_PHASE_ACTIVE )
@@ -405,7 +405,7 @@ void SmtLibWriter::addTableauRow( const SparseUnsortedList &row, List<String> &i
     instance.append( assertRowLine + "))\n" );
 }
 
-void SmtLibWriter::addGroundUpperBounds( const Vector<double> &bounds,  List<String> &instance )
+void SmtLibWriter::addGroundUpperBounds( const Vector<double> &bounds, List<String> &instance )
 {
     if ( bounds.empty() )
         return;
@@ -417,14 +417,15 @@ void SmtLibWriter::addGroundUpperBounds( const Vector<double> &bounds,  List<Str
     addGroundUpperBounds( boundsMap, instance );
 }
 
-void SmtLibWriter::addGroundUpperBounds( const Map<unsigned, double> &bounds, List<String> &instance )
+void SmtLibWriter::addGroundUpperBounds( const Map<unsigned, double> &bounds,
+                                         List<String> &instance )
 {
     if ( bounds.empty() )
         return;
 
     for ( unsigned i : bounds.keys() )
     {
-        mpq_class bound(  bounds.at( i ) );
+        mpq_class bound( bounds.at( i ) );
         String boundString = bound.get_str();
         boundString = bound.get_den().get_str() == "1" ? boundString + ".0" : boundString;
 
@@ -433,7 +434,7 @@ void SmtLibWriter::addGroundUpperBounds( const Map<unsigned, double> &bounds, Li
     }
 }
 
-void SmtLibWriter::addGroundLowerBounds( const Vector<double> &bounds,  List<String> &instance )
+void SmtLibWriter::addGroundLowerBounds( const Vector<double> &bounds, List<String> &instance )
 {
     if ( bounds.empty() )
         return;
@@ -445,7 +446,8 @@ void SmtLibWriter::addGroundLowerBounds( const Vector<double> &bounds,  List<Str
     addGroundLowerBounds( boundsMap, instance );
 }
 
-void SmtLibWriter::addGroundLowerBounds( const Map<unsigned, double> &bounds, List<String> &instance )
+void SmtLibWriter::addGroundLowerBounds( const Map<unsigned, double> &bounds,
+                                         List<String> &instance )
 {
     if ( bounds.empty() )
         return;
@@ -508,7 +510,7 @@ void SmtLibWriter::addEquation( const Equation &eq, List<String> &instance, bool
     String scalar = eqScalar.get_str();
     if ( eqScalar.get_den() == 1 )
         scalar += ".0";
-    if ( eq._scalar < 0)
+    if ( eq._scalar < 0 )
         scalar = String( "(- " ) + scalar + ")";
 
     assertRowLine += scalar;
@@ -546,10 +548,10 @@ String SmtLibWriter::writeEqAddends( const List<Equation::Addend> &addends )
             res += String( "(- x" ) + std::to_string( addend._variable ) + ")";
         else if ( addend._coefficient == (int)addend._coefficient )
             res += String( "(* " ) + signedValue( addend._coefficient ) + " x" +
-                             std::to_string( addend._variable ) + ")";
+                   std::to_string( addend._variable ) + ")";
         else
-            res +=
-                    String( "(* " ) + tempVal.get_str() + " x" + std::to_string( addend._variable ) + ")";
+            res += String( "(* " ) + tempVal.get_str() + " x" + std::to_string( addend._variable ) +
+                   ")";
     }
 
     return res;

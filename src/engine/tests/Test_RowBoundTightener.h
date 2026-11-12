@@ -36,16 +36,17 @@ public:
                            double expected )
     {
         auto it = std::find_if(
-                tightenings.begin(), tightenings.end(), [variable, type]( const Tightening &t ) {
-                    return t._variable == variable && t._type == type;
-                } );
+            tightenings.begin(), tightenings.end(), [variable, type]( const Tightening &t ) {
+                return t._variable == variable && t._type == type;
+            } );
 
         TS_ASSERT( it != tightenings.end() );
 
         if ( it == tightenings.end() )
             return;
 
-        TS_ASSERT_DELTA( it->_value, expected, 5 * GlobalConfiguration::BOUND_COMPARISON_ADDITIVE_TOLERANCE );
+        TS_ASSERT_DELTA(
+            it->_value, expected, 5 * GlobalConfiguration::BOUND_COMPARISON_ADDITIVE_TOLERANCE );
     }
 
     void setUp()
@@ -127,11 +128,11 @@ public:
         // LB -> 1 - 10 - 4 -100
         // UB -> 1 - 5 + 6 + 100
         TS_ASSERT_EQUALS(
-                lower->_value,
-                -113 - GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
+            lower->_value,
+            -113 - GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
         TS_ASSERT_EQUALS(
-                upper->_value,
-                102 + GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
+            upper->_value,
+            102 + GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
     }
 
     void test_pivot_row_just_upper_tightend()
@@ -192,8 +193,8 @@ public:
 
         // Lower: 1 - 10 - 4, Upper: 1 - 5 + 6
         TS_ASSERT_EQUALS(
-                upper->_value,
-                2 + GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
+            upper->_value,
+            2 + GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
     }
 
     void test_pivot_row__just_lower_tightend()
@@ -246,8 +247,8 @@ public:
 
         // Lower: 1 - 10 - 4, Lower: 1 - 5 + 6
         TS_ASSERT_EQUALS(
-                lower._value,
-                -13 - GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
+            lower._value,
+            -13 - GlobalConfiguration::EXPLICIT_BASIS_BOUND_TIGHTENING_ROUNDING_CONSTANT );
     }
 
     void test_pivot_row__nothing_tightened()
@@ -394,8 +395,8 @@ public:
         */
 
         double A[] = {
-                1, -2, 0, 1, 2, //
-                0, -2, 1, 0, 0, //
+            1, -2, 0, 1, 2, //
+            0, -2, 1, 0, 0, //
         };
 
         double b[] = { 1, -2 };
